@@ -3,6 +3,7 @@
 #include "Buffer.h"
 #include "Fence.h"
 #include "Image.h"
+#include "LineNumber.h"
 #include "PipelineLayout.h"
 #include "Plane.h"
 #include "RenderPass.h"
@@ -211,6 +212,13 @@ private:
     std::vector<uint32_t> fontIndices_;
     std::unique_ptr<Buffer> fontVertexBuffer_;
     std::unique_ptr<Buffer> fontIndexBuffer_;
+
+    
+    std::unique_ptr<LineNumber> lineNumber_;
+    std::vector<Font::Point> lineNumberVertices_;
+    std::vector<uint32_t> lineNumberIndices_;
+    std::unique_ptr<Buffer> lineNumberVertexBuffer_;
+    std::unique_ptr<Buffer> lineNumberIndexBuffer_;
 
     std::unique_ptr<Editor> editor_;
     std::unique_ptr<PipelineLayout> cursorPipelineLayout_;

@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <iostream>
@@ -39,6 +40,7 @@
 
 #include "ShaderModule.h"
 #include "Plane.h"
+#include "LineNumber.h"
 
 Vulkan::Vulkan(const std::string& title, uint32_t width, uint32_t height) : width_(width), height_(height), title_(title) {
     camera_ = std::make_shared<Camera>();
@@ -585,12 +587,11 @@ void Vulkan::createVertex() {
     auto t = canvas_->vertices(0, 0, swapChain_->width(), swapChain_->height());
     canvasVertices_ = t.first;
     canvasIndices_ = t.second;
-
-    font_ = std::make_unique<Font>(fontPath_.c_str(), 48);
 }
 
 void Vulkan::createEditor() {
-    editor_ = std::make_unique<Editor>(swapChain_->width(), swapChain_->height(), 33);
+    editor_ = std::make_unique<Editor>(swapChain_->width(), swapChain_->height(), font_->lineHeight_);
+    lineNumber_ = std::make_unique<LineNumber>(*editor_);
     
     // for (int i = 0; i < 1000; i ++) {
     //     for (int j = 0; j < 150; j++) {
@@ -1103,6 +1104,19 @@ void Vulkan::recordCommadBuffer(VkCommandBuffer commandBuffer, uint32_t imageInd
 
         VkDeviceSize offsets[] = {0};
 
+        if (lineNumber_->wordCount_ > 0) {
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, fontPipeline_->pipeline());
+
+            std::vector<VkDescriptorSet> descriptorSets{fontDescriptorSet_};
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, fontPipelineLayout_->pipelineLayout(), 0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
+
+            std::vector<VkBuffer> vertexBuffer = {lineNumberVertexBuffer_->buffer()};
+            vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffer.data(), offsets);
+            vkCmdBindIndexBuffer(commandBuffer, lineNumberIndexBuffer_->buffer(), 0, VK_INDEX_TYPE_UINT32);
+            
+            vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(lineNumberIndices_.size()), 1, 0, 0, 0);
+        }
+
         // chars
         if (editor_->wordCount_ > 0) {
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, fontPipeline_->pipeline());
@@ -1267,6 +1281,7 @@ void Vulkan::loadTextures() {
 void Vulkan::loadChars() {
     font_ = std::make_unique<Font>(fontPath_.c_str(), 32);
 
+    uint32_t height = 0;
     for (uint32_t i = 0; i < 128; i++) {
         char c = static_cast<char>(i);
         font_->loadChar(c);
@@ -1279,6 +1294,7 @@ void Vulkan::loadChars() {
         auto offsetY = font_->glyph()->bitmap_top;
         auto advance = font_->glyph()->advance.x / 64;
         VkDeviceSize size = texWidth * texHeight * 1;
+        height = std::max(height, static_cast<uint32_t>(texHeight));
 
         if (pixel == nullptr) {
             texWidth = 15;
@@ -1288,8 +1304,6 @@ void Vulkan::loadChars() {
             advance = 19;
             size = texWidth * texHeight * 1;
         }
-
-        std::cout << advance << std::endl;
 
         currentChar.char_ = c;
         currentChar.offsetX_ = offsetX;
@@ -1346,6 +1360,8 @@ void Vulkan::loadChars() {
             Tools::setImageLayout(cmdBuffer, image->image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
         endSingleTimeCommands(cmdBuffer, transferQueue_);
     }
+    font_->advance_ = dictionary_['a'].advance_;
+    font_->lineHeight_ = height;
 }
 
 void Vulkan::updateDrawAssets() {
@@ -1358,13 +1374,13 @@ void Vulkan::updateDrawAssets() {
     {   
         // auto s = Timer::nowMilliseconds();
         if (editor_->wordCount_ > 0) {
-            std::cout << editor_->limit_.up_ << ", " << editor_->limit_.bottom_ << std::endl;
+            // std::cout << editor_->limit_.up_ << ", " << editor_->limit_.bottom_ << std::endl;
             auto text = std::vector<std::string>(editor_->lines_.begin() + editor_->limit_.up_, editor_->lines_.begin() + editor_->limit_.bottom_);
             // for (auto& s : text) {
             //     std::cout << s << std::endl;
             // }
             // auto s = Timer::nowMilliseconds();
-            auto t = font_->generateTextLines(-static_cast<float>(swapChain_->width()) / 2.0f, static_cast<float>(swapChain_->height()) / 2.0f - editor_->lineHeight_, text, dictionary_, editor_->lineHeight_);
+            auto t = font_->generateTextLines(-static_cast<float>(swapChain_->width()) / 2.0f + lineNumber_->lineNumberOffset_ * font_->advance_, static_cast<float>(swapChain_->height()) / 2.0f - editor_->lineHeight_, text, dictionary_, editor_->lineHeight_);
             // auto e = Timer::nowMilliseconds();
             // std::cout << std::format("generate vertices ms: {}\n", e - s);
             fontVertices_ = t.first;
@@ -1428,6 +1444,74 @@ void Vulkan::updateDrawAssets() {
         }
         // auto e = Timer::nowMilliseconds();
         // std::cout << std::format("create text buffer ms: {}\n", e - s); 
+
+        if (lineNumber_->wordCount_ > 0) {
+            // std::cout << lineNumber_->limit_.up_ << ", " << lineNumber_->limit_.bottom_ << std::endl;
+            auto text = std::vector<std::string>(lineNumber_->lines_.begin() + lineNumber_->limit_.up_, lineNumber_->lines_.begin() + lineNumber_->limit_.bottom_);
+            for (auto& s : text) {
+                // std::cout << s << std::endl;
+            }
+            auto t = font_->generateTextLines(-static_cast<float>(swapChain_->width()) / 2.0f, static_cast<float>(swapChain_->height()) / 2.0f - lineNumber_->lineHeight_, text, dictionary_, lineNumber_->lineHeight_);
+
+            lineNumberVertices_ = t.first;
+            lineNumberIndices_ = t.second;
+
+            // linenumber vertices
+            VkDeviceSize size = sizeof(lineNumberVertices_[0]) * lineNumberVertices_.size();
+
+            lineNumberVertexBuffer_.reset(nullptr);
+            lineNumberVertexBuffer_ = std::make_unique<Buffer>(physicalDevice_, device_);
+            lineNumberVertexBuffer_->size_ = size;
+            lineNumberVertexBuffer_->usage_ = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+            lineNumberVertexBuffer_->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
+            lineNumberVertexBuffer_->pQueueFamilyIndices_ = queueFamilies_.sets().data();
+            lineNumberVertexBuffer_->sharingMode_ = queueFamilies_.sharingMode();
+            lineNumberVertexBuffer_->memoryProperties_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            lineNumberVertexBuffer_->init();
+
+            auto staginBuffer = std::make_unique<Buffer>(physicalDevice_, device_);
+            staginBuffer->size_ = size;
+            staginBuffer->usage_ = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            staginBuffer->sharingMode_ = VK_SHARING_MODE_EXCLUSIVE;
+            staginBuffer->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
+            staginBuffer->pQueueFamilyIndices_ = queueFamilies_.sets().data();
+            staginBuffer->memoryProperties_ = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+            staginBuffer->init();
+
+            auto data = staginBuffer->map(size);
+            memcpy(data, lineNumberVertices_.data(), size);
+            staginBuffer->unMap();
+
+            copyBuffer(staginBuffer->buffer(), lineNumberVertexBuffer_->buffer(), size);
+
+            // linenumber index
+            size = sizeof(lineNumberIndices_[0]) * lineNumberIndices_.size();
+
+            lineNumberIndexBuffer_.reset(nullptr);
+            lineNumberIndexBuffer_ = std::make_unique<Buffer>(physicalDevice_, device_);
+            lineNumberIndexBuffer_->size_ = size;
+            lineNumberIndexBuffer_->usage_ = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+            lineNumberIndexBuffer_->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
+            lineNumberIndexBuffer_->pQueueFamilyIndices_ = queueFamilies_.sets().data();
+            lineNumberIndexBuffer_->sharingMode_ = queueFamilies_.sharingMode();
+            lineNumberIndexBuffer_->memoryProperties_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            lineNumberIndexBuffer_->init();
+
+            staginBuffer = std::make_unique<Buffer>(physicalDevice_, device_);
+            staginBuffer->size_ = size;
+            staginBuffer->usage_ = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            staginBuffer->sharingMode_ = VK_SHARING_MODE_EXCLUSIVE;
+            staginBuffer->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
+            staginBuffer->pQueueFamilyIndices_ = queueFamilies_.sets().data();
+            staginBuffer->memoryProperties_ = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+            staginBuffer->init();
+
+            data = staginBuffer->map(size);
+            memcpy(data, lineNumberIndices_.data(), size);
+            staginBuffer->unMap();
+
+            copyBuffer(staginBuffer->buffer(), lineNumberIndexBuffer_->buffer(), size);
+        }
     }
 
     // cursor
@@ -1446,21 +1530,9 @@ void Vulkan::updateDrawAssets() {
                 cursorColor = glm::vec3(1.0f, 1.0f, 1.0f);
             }
         }
-        
 
-        float x = static_cast<float>(editor_->cursorPos_.x);
-        float y = static_cast<float>(editor_->cursorPos_.y - editor_->limit_.up_);
-
-        x += editor_->lineNumberOffset_;
-        x *= 19;
-        y *= static_cast<float>(editor_->lineHeight_);
-        y += static_cast<float>(editor_->lineHeight_) / 2.0f;
-
-        x += -static_cast<float>(swapChain_->width() / 2.0f);
-
-        y = static_cast<float>(swapChain_->height() / 2.0f) - y;
-
-        auto t = canvas_->vertices(x, y, 2.0f, editor_->lineHeight_, cursorColor);
+        auto xy = editor_->cursorRenderPos(lineNumber_->lineNumberOffset_ * font_->advance_, font_->advance_);
+        auto t = canvas_->vertices(xy.x, xy.y, 2.0f, editor_->lineHeight_, cursorColor);
         cursorVertices_ = t.first;
         cursorIndices_ = t.second;
 
@@ -1821,6 +1893,8 @@ void Vulkan::inputText(int key, int scancode, int mods) {
     } else {
         editor_->moveCursor(static_cast<Editor::Direction>(key));
     }
+
+    lineNumber_->adjustCursor(editor_->cursorPos_, editor_->lines_);
 }
 
 void Vulkan::inputCommand(int key, int scancode, int mods) {
