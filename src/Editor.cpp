@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <iostream>
 
-Editor::Editor(uint32_t width, uint32_t height, uint32_t lineHeight) : screen_(width, height), lineHeight_(lineHeight), showLines_(height / lineHeight) {
+Editor::Editor(int32_t width, int32_t height, int32_t lineHeight) : screen_(width, height), lineHeight_(lineHeight), showLines_(height / lineHeight) {
     lines_.resize(1);
     addLineNumber(lines_[0], 1);
     wordCount_ += 5;
@@ -75,10 +75,10 @@ void Editor::delteChar() {
     auto& currLine = lines_[cursorPos_.y];
 
     if (cursorPos_.x == 0) {
-        lines_[cursorPos_.y - 1] += currLine;
+        lines_[cursorPos_.y - 1] += std::string(currLine.begin() + lineNumberOffset_, currLine.end());
         lines_.erase(lines_.begin() + cursorPos_.y);
         cursorPos_.y--;
-        cursorPos_.x = lines_[cursorPos_.y].size();
+        cursorPos_.x = lines_[cursorPos_.y].size() - lineNumberOffset_;
     } else {
         currLine.erase(currLine.begin() + (cursorPos_.x + lineNumberOffset_ - 1));
         cursorPos_.x--;
@@ -96,14 +96,14 @@ void Editor::moveCursor(Editor::Direction dir) {
             return ;
         }
         cursorPos_.y--;
-        cursorPos_.x = std::min(cursorPos_.x, static_cast<uint32_t>(lines_[cursorPos_.y].size() - lineNumberOffset_));
+        cursorPos_.x = std::min(cursorPos_.x, static_cast<int32_t>(lines_[cursorPos_.y].size() - lineNumberOffset_));
         break;
     case Down:
         if (cursorPos_.y >= lines_.size() - 1) {
             return ;
         }
         cursorPos_.y++;
-        cursorPos_.x = std::min(cursorPos_.x, static_cast<uint32_t>(lines_[cursorPos_.y].size() - lineNumberOffset_));
+        cursorPos_.x = std::min(cursorPos_.x, static_cast<int32_t>(lines_[cursorPos_.y].size() - lineNumberOffset_));
         break;
     case Right:
         if (cursorPos_.x + lineNumberOffset_ >= lines_[cursorPos_.y].size()) {
@@ -125,39 +125,35 @@ void Editor::moveCursor(Editor::Direction dir) {
 void Editor::moveLimit() {
     if (cursorPos_.y < limit_.up_) {
         limit_.up_ = cursorPos_.y;
-        if (limit_.bottom_ - limit_.up_ > showLines_) {
-            limit_.bottom_ = limit_.up_ + showLines_;
-        }
     } else if (cursorPos_.y >= limit_.bottom_) {
-        limit_.bottom_ = cursorPos_.y + 1;
-        if (limit_.bottom_ - limit_.up_ > showLines_) {
-            limit_.up_ = limit_.bottom_ - showLines_;
-        }
+        limit_.up_ = cursorPos_.y - showLines_ + 1;
     }
 
-    limit_.bottom_ = std::min(limit_.bottom_, static_cast<uint32_t>(lines_.size()));
+    limit_.up_ = std::max(limit_.up_, 0);
+    limit_.bottom_ = limit_.up_ + showLines_;
+    limit_.bottom_ = std::min(limit_.bottom_, static_cast<int32_t>(lines_.size()));
 }
 
 bool Editor::lineEmpty(const std::string& line) {
     return line.size() - lineNumberOffset_ <= 0;
 }
 
-void Editor::addLineNumber(std::string& line, uint32_t lineNumber) {
+void Editor::addLineNumber(std::string& line, int32_t lineNumber) {
     char s[10];
     snprintf(s, 10, "%4d ", lineNumber);
     line = s;
 }
 
-void Editor::adjust(uint32_t width, uint32_t height) {
+void Editor::adjust(int32_t width, int32_t height) {
     screen_ = glm::uvec2(width, height);
 
     showLines_ = height / lineHeight_;
 
     limit_.bottom_ = limit_.up_ + showLines_;
-    limit_.bottom_ = std::min(limit_.bottom_, static_cast<uint32_t>(lines_.size()));
+    limit_.bottom_ = std::min(limit_.bottom_, static_cast<int32_t>(lines_.size()));
 }
 
-glm::ivec2 Editor::cursorRenderPos(uint32_t fontAdvance) {
+glm::ivec2 Editor::cursorRenderPos(int32_t fontAdvance) {
     auto x = static_cast<float>(cursorPos_.x);
     auto y = static_cast<float>(cursorPos_.y - limit_.up_);
 
