@@ -32,9 +32,8 @@ public:
     void moveCursor(Direction dir);
     void moveLimit();
     bool lineEmpty(const std::string& line);
-    void addLineNumber(std::string& line, int32_t lineNumber);
     void adjust(int32_t width, int32_t height);
-    glm::ivec2 cursorRenderPos(int32_t fontAdvance);
+    glm::ivec2 cursorRenderPos(int32_t offsetX, int32_t fontAdvance);
 public:
     struct Limit {
         int32_t up_ = 0;
@@ -50,6 +49,6 @@ public:
     glm::ivec2 screen_;
     int32_t showLines_;
     Limit limit_{};
-    int32_t lineNumberOffset_ = 5;
+    int32_t lineNumberOffset_ = 0;
     unsigned long long wordCount_ = 0;
 };

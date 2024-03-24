@@ -8,8 +8,6 @@
 
 Editor::Editor(int32_t width, int32_t height, int32_t lineHeight) : screen_(width, height), lineHeight_(lineHeight), showLines_(height / lineHeight) {
     lines_.resize(1);
-    addLineNumber(lines_[0], 1);
-    wordCount_ += 5;
 }
 
 Editor::Mode Editor::mode() const {
@@ -24,10 +22,7 @@ void Editor::enter() {
 
     cursorPos_.y++;
     cursorPos_.x = 0;
-    addLineNumber(newLine, cursorPos_.y + 1);
     lines_.insert(lines_.begin() + cursorPos_.y, newLine);
-
-    wordCount_ += 5;
 
     moveLimit();
 }
@@ -138,11 +133,7 @@ bool Editor::lineEmpty(const std::string& line) {
     return line.size() - lineNumberOffset_ <= 0;
 }
 
-void Editor::addLineNumber(std::string& line, int32_t lineNumber) {
-    char s[10];
-    snprintf(s, 10, "%4d ", lineNumber);
-    line = s;
-}
+
 
 void Editor::adjust(int32_t width, int32_t height) {
     screen_ = glm::uvec2(width, height);
@@ -153,7 +144,7 @@ void Editor::adjust(int32_t width, int32_t height) {
     limit_.bottom_ = std::min(limit_.bottom_, static_cast<int32_t>(lines_.size()));
 }
 
-glm::ivec2 Editor::cursorRenderPos(int32_t fontAdvance) {
+glm::ivec2 Editor::cursorRenderPos(int32_t offsetX, int32_t fontAdvance) {
     auto x = static_cast<float>(cursorPos_.x);
     auto y = static_cast<float>(cursorPos_.y - limit_.up_);
 
@@ -166,5 +157,5 @@ glm::ivec2 Editor::cursorRenderPos(int32_t fontAdvance) {
     x += -static_cast<float>(screen_.x) / 2.0f;
     y = static_cast<float>(screen_.y) / 2.0f - y;
 
-    return {x, y};
+    return {x + offsetX, y};
 }
