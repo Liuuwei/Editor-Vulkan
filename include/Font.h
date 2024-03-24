@@ -196,6 +196,8 @@ public:
     void renderMode(FT_Render_Mode mode);
     FT_Bitmap bitmap() { return face_->glyph->bitmap; }
     FT_GlyphSlot glyph() { return face_->glyph; }
+    uint32_t advance_ = 0;
+    uint32_t lineHeight_ =0 ;
 private:
     void check(FT_Error error);
 
