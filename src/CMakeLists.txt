@@ -20,6 +20,7 @@ Camera.cpp
 Timer.cpp
 Font.cpp
 Editor.cpp
+LineNumber.cpp
 )
 
 target_link_libraries(MyVulkan vulkan-1 glfw3dll ktx freetype)
