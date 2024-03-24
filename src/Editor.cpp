@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <iostream>
 
 Editor::Editor(uint32_t width, uint32_t height, uint32_t lineHeight) : screen_(width, height), lineHeight_(lineHeight), showLines_(height / lineHeight) {
     lines_.resize(1);
@@ -154,4 +155,20 @@ void Editor::adjust(uint32_t width, uint32_t height) {
 
     limit_.bottom_ = limit_.up_ + showLines_;
     limit_.bottom_ = std::min(limit_.bottom_, static_cast<uint32_t>(lines_.size()));
+}
+
+glm::ivec2 Editor::cursorRenderPos(uint32_t fontAdvance) {
+    auto x = static_cast<float>(cursorPos_.x);
+    auto y = static_cast<float>(cursorPos_.y - limit_.up_);
+
+    x += lineNumberOffset_;
+    x *= fontAdvance;
+    
+    y *= static_cast<float>(lineHeight_);
+    y += static_cast<float>(lineHeight_) / 2.0f;
+
+    x += -static_cast<float>(screen_.x) / 2.0f;
+    y = static_cast<float>(screen_.y) / 2.0f - y;
+
+    return {x, y};
 }

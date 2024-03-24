@@ -34,6 +34,7 @@ public:
     bool lineEmpty(const std::string& line);
     void addLineNumber(std::string& line, uint32_t lineNumber);
     void adjust(uint32_t width, uint32_t height);
+    glm::ivec2 cursorRenderPos(uint32_t fontAdvance);
 public:
     struct Limit {
         uint32_t up_ = 0;
