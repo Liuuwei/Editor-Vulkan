@@ -21,6 +21,11 @@ public:
         Left = GLFW_KEY_LEFT, 
     };
 
+    struct Limit {
+        int32_t up_ = 0;
+        int32_t bottom_ = 1;
+    };
+
     Editor(int32_t width, int32_t height, int32_t lineHeight);
 
     Mode mode() const;
@@ -34,12 +39,10 @@ public:
     bool lineEmpty(const std::string& line);
     void adjust(int32_t width, int32_t height);
     glm::ivec2 cursorRenderPos(int32_t offsetX, int32_t fontAdvance);
+    bool empty();
+    Editor::Limit showLimit();
+    
 public:
-    struct Limit {
-        int32_t up_ = 0;
-        int32_t bottom_ = 1;
-    };
-
     Mode mode_ = Command;
     int32_t lineHeight_;
     int32_t currLine_ = 0;
@@ -49,6 +52,7 @@ public:
     glm::ivec2 screen_;
     int32_t showLines_;
     Limit limit_{};
+    Limit showLimit_{};
     int32_t lineNumberOffset_ = 0;
     unsigned long long wordCount_ = 0;
 };

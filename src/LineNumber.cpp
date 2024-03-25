@@ -7,25 +7,26 @@ LineNumber::LineNumber(const Editor& editor) : Editor(editor.screen_.x, editor.s
     lines_.clear();
     lines_.push_back({});
     addLineNumber(lines_.back(), lines_.size());
-    // std::cout << lines_.back() << std::endl;
     wordCount_ = lines_.size() * 5;
 }
 
-void LineNumber::adjustCursor(glm::ivec2 cursorPos, const std::vector<std::string>& lines) {
-    cursorPos_ = cursorPos;
-    std::cout << lines_.size() << std::endl;
-    while (lines_.size() < lines.size()) {
+void LineNumber::adjust(const Editor& editor) {
+    adjustCursor(editor);
+    limit_ = editor.limit_;
+}
+
+void LineNumber::adjustCursor(const Editor& editor) {
+    cursorPos_ = editor.cursorPos_;
+    while (lines_.size() < editor.lines_.size()) {
         lines_.push_back({});
         addLineNumber(lines_.back(), lines_.size());
     }
 
-    while (lines_.size() > lines.size()) {
+    while (lines_.size() > editor.lines_.size()) {
         lines_.pop_back();
     }
 
     wordCount_ = lines_.size() * 5;
-
-    moveLimit();
 }
 
 void LineNumber::addLineNumber(std::string& line, int32_t lineNumber) {

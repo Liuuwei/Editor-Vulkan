@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <iostream>
+#include <format>
 
 Editor::Editor(int32_t width, int32_t height, int32_t lineHeight) : screen_(width, height), lineHeight_(lineHeight), showLines_(height / lineHeight) {
     lines_.resize(1);
@@ -17,7 +18,6 @@ Editor::Mode Editor::mode() const {
 void Editor::enter() {
     auto& currLine = lines_[cursorPos_.y];
     auto newLine = std::string(currLine.begin() + cursorPos_.x + lineNumberOffset_, currLine.end());
-
     currLine.erase(currLine.begin() + cursorPos_.x + lineNumberOffset_, currLine.end());
 
     cursorPos_.y++;
@@ -126,14 +126,11 @@ void Editor::moveLimit() {
 
     limit_.up_ = std::max(limit_.up_, 0);
     limit_.bottom_ = limit_.up_ + showLines_;
-    limit_.bottom_ = std::min(limit_.bottom_, static_cast<int32_t>(lines_.size()));
 }
 
 bool Editor::lineEmpty(const std::string& line) {
     return line.size() - lineNumberOffset_ <= 0;
 }
-
-
 
 void Editor::adjust(int32_t width, int32_t height) {
     screen_ = glm::uvec2(width, height);
@@ -141,7 +138,6 @@ void Editor::adjust(int32_t width, int32_t height) {
     showLines_ = height / lineHeight_;
 
     limit_.bottom_ = limit_.up_ + showLines_;
-    limit_.bottom_ = std::min(limit_.bottom_, static_cast<int32_t>(lines_.size()));
 }
 
 glm::ivec2 Editor::cursorRenderPos(int32_t offsetX, int32_t fontAdvance) {
@@ -158,4 +154,21 @@ glm::ivec2 Editor::cursorRenderPos(int32_t offsetX, int32_t fontAdvance) {
     y = static_cast<float>(screen_.y) / 2.0f - y;
 
     return {x + offsetX, y};
+}
+
+bool Editor::empty() {
+    for (size_t i = limit_.up_; i < limit_.bottom_; i++) {
+        if (!lines_[i].empty()) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+Editor::Limit Editor::showLimit() {
+    auto up = std::max(limit_.up_, 0);
+    auto bottom = std::min(limit_.bottom_, static_cast<int32_t>(lines_.size()));
+
+    return {up, bottom};
 }
