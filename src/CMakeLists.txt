@@ -21,6 +21,9 @@ Timer.cpp
 Font.cpp
 Editor.cpp
 LineNumber.cpp
+Grammar.cpp
+Keyboard.cpp
+Tools.cpp
 )
 
 target_link_libraries(MyVulkan vulkan-1 glfw3dll ktx freetype)
