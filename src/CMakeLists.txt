@@ -24,6 +24,7 @@ LineNumber.cpp
 Grammar.cpp
 Keyboard.cpp
 Tools.cpp
+CommandLine.cpp
 )
 
 target_link_libraries(MyVulkan vulkan-1 glfw3dll ktx freetype)
