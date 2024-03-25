@@ -157,7 +157,7 @@ glm::ivec2 Editor::cursorRenderPos(int32_t offsetX, int32_t fontAdvance) {
 }
 
 bool Editor::empty() {
-    for (size_t i = limit_.up_; i < limit_.bottom_; i++) {
+    for (size_t i = showLimit().up_; i < showLimit().bottom_; i++) {
         if (!lines_[i].empty()) {
             return false;
         }

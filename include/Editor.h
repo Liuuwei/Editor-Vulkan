@@ -41,7 +41,7 @@ public:
     glm::ivec2 cursorRenderPos(int32_t offsetX, int32_t fontAdvance);
     bool empty();
     Editor::Limit showLimit();
-    
+
 public:
     Mode mode_ = Command;
     int32_t lineHeight_;
@@ -52,7 +52,6 @@ public:
     glm::ivec2 screen_;
     int32_t showLines_;
     Limit limit_{};
-    Limit showLimit_{};
     int32_t lineNumberOffset_ = 0;
     unsigned long long wordCount_ = 0;
 };
