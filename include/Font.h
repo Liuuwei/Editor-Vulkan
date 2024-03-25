@@ -148,7 +148,7 @@ public:
 
     
 
-    static std::pair<std::vector<Font::Point>, std::vector<uint32_t>> generateTextLine(float x, float y, const std::string& line, const std::unordered_map<char, Character>& dictionary, const Grammar& grammar) {
+    static std::pair<std::vector<Font::Point>, std::vector<uint32_t>> genTextLine(float x, float y, const std::string& line, const std::unordered_map<char, Character>& dictionary, const Grammar& grammar) {
         auto s = Timer::nowMilliseconds();
         std::pair<std::vector<Font::Point>, std::vector<uint32_t>> result;
         unsigned long long v = 0, m = 0;
@@ -186,13 +186,13 @@ public:
         return result;
     }
 
-    static std::pair<std::vector<Font::Point>, std::vector<uint32_t>> generateTextLines(float x, float y, uint32_t lineHeight, const std::vector<std::string>& lines, const std::unordered_map<char, Character>& dictionary, const Grammar& grammar) {
+    static std::pair<std::vector<Font::Point>, std::vector<uint32_t>> genTextLines(float x, float y, uint32_t lineHeight, const std::vector<std::string>& lines, const std::unordered_map<char, Character>& dictionary, const Grammar& grammar) {
         std::pair<std::vector<Font::Point>, std::vector<uint32_t>> result;
 
         unsigned long long g = 0, m = 0;
         for (auto& line : lines) {
             // auto s = Timer::nowMilliseconds();
-            auto pointAndIndex = Font::generateTextLine(x, y, line, dictionary, grammar);
+            auto pointAndIndex = Font::genTextLine(x, y, line, dictionary, grammar);
             // auto e = Timer::nowMilliseconds();
             // g += e - s;
             
