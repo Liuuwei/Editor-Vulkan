@@ -11,6 +11,8 @@
 #include <string>
 
 Editor::Editor(int32_t width, int32_t height, int32_t lineHeight) : screen_(width, height), lineHeight_(lineHeight), showLines_(height / lineHeight) {
+    showLines_ -= showLinesOffset_;
+
     lines_.resize(1);
 }
 
@@ -152,24 +154,32 @@ void Editor::adjust(int32_t width, int32_t height) {
     screen_ = glm::uvec2(width, height);
 
     showLines_ = height / lineHeight_;
+    showLines_ -= showLinesOffset_;
 
     limit_.bottom_ = limit_.up_ + showLines_;
 }
 
 glm::ivec2 Editor::cursorRenderPos(int32_t offsetX, int32_t fontAdvance) {
-    auto x = static_cast<float>(cursorPos_.x);
-    auto y = static_cast<float>(cursorPos_.y - limit_.up_);
+    glm::ivec2 xy;
+    xy.x = static_cast<float>(cursorPos_.x);
+    xy.y = static_cast<float>(cursorPos_.y - limit_.up_);
 
-    x += lineNumberOffset_;
-    x *= fontAdvance;
+    xy.x += lineNumberOffset_;
+    xy.x *= fontAdvance;
     
-    y *= static_cast<float>(lineHeight_);
-    y += static_cast<float>(lineHeight_) / 2.0f;
+    xy.y *= static_cast<float>(lineHeight_);
+    xy.y += static_cast<float>(lineHeight_) / 2.0f;
 
-    x += -static_cast<float>(screen_.x) / 2.0f;
-    y = static_cast<float>(screen_.y) / 2.0f - y;
+    xy = posToScreenPos(xy);
 
-    return {x + offsetX, y};
+    return {xy.x + offsetX, xy.y};
+}
+
+glm::ivec2 Editor::posToScreenPos(glm::ivec2 pos) {
+    pos.x += -static_cast<float>(screen_.x) / 2.0f;
+    pos.y = static_cast<float>(screen_.y) / 2.0f - pos.y;
+
+    return pos;
 }
 
 bool Editor::empty() {

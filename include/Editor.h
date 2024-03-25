@@ -6,12 +6,15 @@
 #include <vector>
 #include <string>
 #include <glm/glm.hpp>
+#include <iostream>
+#include <format>
 
 class Editor {
 public:
     enum Mode {
+        General, 
         Command, 
-        Input, 
+        Insert, 
     };
 
     enum Direction {
@@ -42,9 +45,10 @@ public:
     glm::ivec2 cursorRenderPos(int32_t offsetX, int32_t fontAdvance);
     bool empty();
     Editor::Limit showLimit();
+    glm::ivec2 posToScreenPos(glm::ivec2 pos);
 
 public:
-    Mode mode_ = Command;
+    Mode mode_ = General;
     int32_t lineHeight_;
     int32_t currLine_ = 0;
     std::vector<std::string> lines_;
@@ -54,5 +58,6 @@ public:
     int32_t showLines_;
     Limit limit_{};
     int32_t lineNumberOffset_ = 0;
+    int showLinesOffset_ = 1;
     unsigned long long wordCount_ = 0;
 };
