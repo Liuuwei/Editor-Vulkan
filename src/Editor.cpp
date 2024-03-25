@@ -4,11 +4,27 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <fstream>
 #include <iostream>
 #include <format>
+#include <stdexcept>
+#include <string>
 
 Editor::Editor(int32_t width, int32_t height, int32_t lineHeight) : screen_(width, height), lineHeight_(lineHeight), showLines_(height / lineHeight) {
     lines_.resize(1);
+}
+
+void Editor::init(const std::string& path) {
+    std::fstream file(path);
+    std::string line;
+    if (!file.is_open()) {
+        throw std::runtime_error("failed to open text");
+    }
+
+    while (std::getline(file, line)) {
+        insertStr(line);
+        enter();
+    }
 }
 
 Editor::Mode Editor::mode() const {
