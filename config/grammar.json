@@ -1,0 +1,28 @@
+{
+    "Red": [
+        "int", 
+        "short", 
+        "long", 
+        "long long", 
+        "unsigned int", 
+        "unsigned short", 
+        "unsigned long", 
+        "unsigned long long", 
+        "char", 
+        "unsigned char", 
+        "wchar_t", 
+        "char16_t", 
+        "char32_t", 
+        "bool", 
+        "void", 
+        "#include"
+    ], 
+
+    "Green": [
+        "\"\""
+    ],
+
+    "Blue": [
+        "<>"
+    ]
+}

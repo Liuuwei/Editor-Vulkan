@@ -8,9 +8,12 @@
 #include <unordered_map>
 #include <iostream>
 
+#include "Grammar.h"
 #include "Plane.h"
 #include "Image.h"
+#include "Tools.h"
 #include "Vertex.h"
+#include "Grammar.h"
 #include "vulkan/vulkan_core.h"
 #include "Timer.h"
 
@@ -143,7 +146,9 @@ public:
     }
     #endif
 
-    static std::pair<std::vector<Font::Point>, std::vector<uint32_t>> generateTextLine(float x, float y, const std::string& line, const std::unordered_map<char, Character>& dictionary) {
+    
+
+    static std::pair<std::vector<Font::Point>, std::vector<uint32_t>> generateTextLine(float x, float y, const std::string& line, const std::unordered_map<char, Character>& dictionary, const Grammar& grammar) {
         auto s = Timer::nowMilliseconds();
         std::pair<std::vector<Font::Point>, std::vector<uint32_t>> result;
         unsigned long long v = 0, m = 0;
@@ -152,8 +157,8 @@ public:
             glm::vec2 center;
             center.x = x + dictionary.at(line[i]).offsetX_ + dictionary.at(line[i]).width_ / 2.0f;
             center.y = y + dictionary.at(line[i]).offsetY_ - dictionary.at(line[i]).height_ / 2.0f;
-            // auto s = Timer::nowMilliseconds();
-            auto t = Font::vertices(center.x, center.y, dictionary.at(line[i]), dictionary.at(line[i]).color_);
+
+            auto t = Font::vertices(center.x, center.y, dictionary.at(line[i]), glm::vec3(0.0f, 0.0f, 0.0f));
             // auto e = Timer::nowMilliseconds();
             // v += e - s;
 
@@ -167,16 +172,27 @@ public:
         }
         // std::cout << std::format("[once] vertices ms: {}, merge ms: {}\n", v, m);
 
+        // color
+        auto wordColor = grammar.parseLine(line);
+        for (auto& word : wordColor) {
+            auto begin = word.first.first;
+            auto size = word.first.second;
+            auto color = word.second;
+            for (int i = begin * 4; i < (begin + size) * 4; i++) {
+                result.first[i].color_ = color;
+            }
+        }
+
         return result;
     }
 
-    static std::pair<std::vector<Font::Point>, std::vector<uint32_t>> generateTextLines(float x, float y, const std::vector<std::string>& lines, const std::unordered_map<char, Character>& dictionary, uint32_t lineWidth) {
+    static std::pair<std::vector<Font::Point>, std::vector<uint32_t>> generateTextLines(float x, float y, uint32_t lineHeight, const std::vector<std::string>& lines, const std::unordered_map<char, Character>& dictionary, const Grammar& grammar) {
         std::pair<std::vector<Font::Point>, std::vector<uint32_t>> result;
 
         unsigned long long g = 0, m = 0;
         for (auto& line : lines) {
             // auto s = Timer::nowMilliseconds();
-            auto pointAndIndex = Font::generateTextLine(x, y, line, dictionary);
+            auto pointAndIndex = Font::generateTextLine(x, y, line, dictionary, grammar);
             // auto e = Timer::nowMilliseconds();
             // g += e - s;
             
@@ -184,7 +200,7 @@ public:
             // s = Timer::nowMilliseconds();
             // m += s - e;
 
-            y -= lineWidth;
+            y -= lineHeight;
         }
 
         // std::cout << std::format("generate ms: {}, merge ms: {}\n", g, m);
