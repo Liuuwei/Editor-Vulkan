@@ -28,6 +28,7 @@ public:
 
     Editor(int32_t width, int32_t height, int32_t lineHeight);
 
+    void init(const std::string& path);
     Mode mode() const;
     void enter();
     void backspace();
