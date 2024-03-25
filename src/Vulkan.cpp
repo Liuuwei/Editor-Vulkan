@@ -31,6 +31,7 @@
 #include <unordered_set>
 #include <ktx.h>
 #include <algorithm>
+#include <format>
 #include <utility>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -41,6 +42,7 @@
 #include "ShaderModule.h"
 #include "Plane.h"
 #include "LineNumber.h"
+#include "Grammar.h"
 
 Vulkan::Vulkan(const std::string& title, uint32_t width, uint32_t height) : width_(width), height_(height), title_(title) {
     camera_ = std::make_shared<Camera>();
@@ -119,6 +121,7 @@ void Vulkan::initVulkan() {
 
 void Vulkan::initOther() {
     keyboard_ = std::make_unique<Keyboard>(60);
+    grammar_ = std::make_unique<Grammar>("../config/grammar.json");
 }
 
 void Vulkan::createInstance() {
@@ -594,6 +597,10 @@ void Vulkan::createVertex() {
 
 void Vulkan::createEditor() {
     editor_ = std::make_unique<Editor>(swapChain_->width(), swapChain_->height(), font_->lineHeight_);
+    auto s = Timer::nowMilliseconds();
+    editor_->init("../text/txt.cpp");
+    auto e = Timer::nowMilliseconds();
+    std::cout << std::format("open file: {} ms\n", e - s);
     lineNumber_ = std::make_unique<LineNumber>(*editor_);
     
     // for (int i = 0; i < 1000; i ++) {
@@ -1384,8 +1391,7 @@ void Vulkan::updateDrawAssets() {
             //     std::cout << s << std::endl;
             // }
             // auto s = Timer::nowMilliseconds();
-            auto t = font_->generateTextLines(-static_cast<float>(swapChain_->width()) / 2.0f + lineNumber_->lineNumberOffset_ * font_->advance_, static_cast<float>(swapChain_->height()) / 2.0f - editor_->lineHeight_, text, dictionary_, editor_->lineHeight_);
-            // auto e = Timer::nowMilliseconds();
+            auto t = font_->generateTextLines(-static_cast<float>(swapChain_->width()) / 2.0f + lineNumber_->lineNumberOffset_ * font_->advance_, static_cast<float>(swapChain_->height()) / 2.0f - editor_->lineHeight_, editor_->lineHeight_, text, dictionary_, *grammar_);
             // std::cout << std::format("generate vertices ms: {}\n", e - s);
             fontVertices_ = t.first;
             fontIndices_ = t.second;
@@ -1455,7 +1461,7 @@ void Vulkan::updateDrawAssets() {
             for (auto& s : text) {
                 // std::cout << s << std::endl;
             }
-            auto t = font_->generateTextLines(-static_cast<float>(swapChain_->width()) / 2.0f, static_cast<float>(swapChain_->height()) / 2.0f - lineNumber_->lineHeight_, text, dictionary_, lineNumber_->lineHeight_);
+            auto t = font_->generateTextLines(-static_cast<float>(swapChain_->width()) / 2.0f, static_cast<float>(swapChain_->height()) / 2.0f - lineNumber_->lineHeight_, editor_->lineHeight_, text, dictionary_, *grammar_);
 
             lineNumberVertices_ = t.first;
             lineNumberIndices_ = t.second;

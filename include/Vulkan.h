@@ -2,6 +2,7 @@
 
 #include "Buffer.h"
 #include "Fence.h"
+#include "Grammar.h"
 #include "Image.h"
 #include "LineNumber.h"
 #include "PipelineLayout.h"
@@ -234,6 +235,7 @@ private:
     glm::vec3 cursorColor_{};
 
     std::unique_ptr<Keyboard> keyboard_;
+    std::unique_ptr<Grammar> grammar_;
 
     int inputText_ = 0;
     int capsLock_ = 0;
