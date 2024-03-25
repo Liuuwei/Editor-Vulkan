@@ -593,12 +593,13 @@ void Vulkan::createEditor() {
     editor_ = std::make_unique<Editor>(swapChain_->width(), swapChain_->height(), font_->lineHeight_);
     lineNumber_ = std::make_unique<LineNumber>(*editor_);
     
-    // for (int i = 0; i < 1000; i ++) {
-    //     for (int j = 0; j < 150; j++) {
-    //         editor_->insertChar('a');
-    //     }
-    //     editor_->enter();
-    // }
+    for (int i = 0; i < 1000; i ++) {
+        for (int j = 0; j < 50; j++) {
+            editor_->insertStr("int ");
+        }
+        editor_->enter();
+        lineNumber_->adjust(*editor_);
+    }
 }
 
 void Vulkan::createGraphicsPipelines() {
@@ -1118,7 +1119,7 @@ void Vulkan::recordCommadBuffer(VkCommandBuffer commandBuffer, uint32_t imageInd
         }
 
         // chars
-        if (editor_->wordCount_ > 0) {
+        if (!editor_->empty()) {
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, fontPipeline_->pipeline());
 
             std::vector<VkDescriptorSet> descriptorSets{fontDescriptorSet_};
@@ -1373,9 +1374,9 @@ void Vulkan::updateDrawAssets() {
     // text
     {   
         // auto s = Timer::nowMilliseconds();
-        if (editor_->wordCount_ > 0) {
+        if (!editor_->empty()) {
             // std::cout << editor_->limit_.up_ << ", " << editor_->limit_.bottom_ << std::endl;
-            auto text = std::vector<std::string>(editor_->lines_.begin() + editor_->limit_.up_, editor_->lines_.begin() + editor_->limit_.bottom_);
+            auto text = std::vector<std::string>(editor_->lines_.begin() + editor_->showLimit().up_, editor_->lines_.begin() + editor_->showLimit().bottom_);
             // for (auto& s : text) {
             //     std::cout << s << std::endl;
             // }
@@ -1447,7 +1448,7 @@ void Vulkan::updateDrawAssets() {
 
         if (lineNumber_->wordCount_ > 0) {
             // std::cout << lineNumber_->limit_.up_ << ", " << lineNumber_->limit_.bottom_ << std::endl;
-            auto text = std::vector<std::string>(lineNumber_->lines_.begin() + lineNumber_->limit_.up_, lineNumber_->lines_.begin() + lineNumber_->limit_.bottom_);
+            auto text = std::vector<std::string>(lineNumber_->lines_.begin() + lineNumber_->showLimit().up_, lineNumber_->lines_.begin() + lineNumber_->showLimit().bottom_);
             for (auto& s : text) {
                 // std::cout << s << std::endl;
             }
@@ -1612,6 +1613,7 @@ void Vulkan::recreateSwapChain() {
 
     createVertex();
     editor_->adjust(swapChain_->width(), swapChain_->height());
+    lineNumber_->adjust(*editor_);
     createVertexBuffer();
     createIndexBuffer();
 
@@ -1894,7 +1896,7 @@ void Vulkan::inputText(int key, int scancode, int mods) {
         editor_->moveCursor(static_cast<Editor::Direction>(key));
     }
 
-    lineNumber_->adjustCursor(editor_->cursorPos_, editor_->lines_);
+    lineNumber_->adjust(*editor_);
 }
 
 void Vulkan::inputCommand(int key, int scancode, int mods) {
