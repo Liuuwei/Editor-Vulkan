@@ -117,8 +117,9 @@ private:
     void input(int key, int scancode, int action, int mods);
     void processInput(int key, int scancode, int mods);
     void inputGeneral(int key, int scancode, int mods);
-    void inputText(int key, int scancode, int mods);
+    void inputInsert(int key, int scancode, int mods);
     void inputCommand(int key, int scandcode, int mods);
+    void processCmd(const std::string& cmd);
     
     GLFWwindow* windows_;
     uint32_t width_;
@@ -214,10 +215,10 @@ private:
     std::unique_ptr<DescriptorPool> fontDescriptorPool_;
     std::unique_ptr<DescriptorSetLayout> fontDescriptorSetLayout_;
     VkDescriptorSet fontDescriptorSet_;
-    std::vector<Font::Point> fontVertices_;
-    std::vector<uint32_t> fontIndices_;
-    std::unique_ptr<Buffer> fontVertexBuffer_;
-    std::unique_ptr<Buffer> fontIndexBuffer_;
+    std::vector<Font::Point> textVertices_;
+    std::vector<uint32_t> textIndices_;
+    std::unique_ptr<Buffer> textVertexBuffer_;
+    std::unique_ptr<Buffer> textIndexBuffer_;
 
     
     std::unique_ptr<LineNumber> lineNumber_;
@@ -237,6 +238,10 @@ private:
     glm::vec3 cursorColor_{};
 
     std::unique_ptr<CommandLine> commandLine_;
+    std::vector<Font::Point> cmdVertices_;
+    std::vector<uint32_t> cmdIndices_;
+    std::unique_ptr<Buffer> cmdVertexBuffer_;
+    std::unique_ptr<Buffer> cmdIndexBuffer_;
 
     std::unique_ptr<Keyboard> keyboard_;
     std::unique_ptr<Grammar> grammar_;
