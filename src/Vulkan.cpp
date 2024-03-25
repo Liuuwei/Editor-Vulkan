@@ -46,6 +46,7 @@ Vulkan::Vulkan(const std::string& title, uint32_t width, uint32_t height) : widt
     camera_ = std::make_shared<Camera>();
     initWindow();
     initVulkan();
+    initOther();
 }
 
 void Vulkan::run() {
@@ -78,10 +79,8 @@ void Vulkan::initWindow() {
             return ;
         }
         auto vulkan = reinterpret_cast<Vulkan*>(glfwGetWindowUserPointer(window));
-
-        if (action == GLFW_PRESS) {
-            vulkan->input(key, scancode, mods);
-        }
+        
+        vulkan->input(key, scancode, action, mods);
     });
     glfwSetCursorPosCallback(windows_, [](GLFWwindow* window, double xpos, double ypos) {
         auto vulkan = reinterpret_cast<Vulkan*>(glfwGetWindowUserPointer(window));
@@ -116,6 +115,10 @@ void Vulkan::initVulkan() {
     createVertexBuffer();
     createIndexBuffer();
     createSyncObjects();
+}
+
+void Vulkan::initOther() {
+    keyboard_ = std::make_unique<Keyboard>(60);
 }
 
 void Vulkan::createInstance() {
@@ -593,13 +596,13 @@ void Vulkan::createEditor() {
     editor_ = std::make_unique<Editor>(swapChain_->width(), swapChain_->height(), font_->lineHeight_);
     lineNumber_ = std::make_unique<LineNumber>(*editor_);
     
-    for (int i = 0; i < 1000; i ++) {
-        for (int j = 0; j < 50; j++) {
-            editor_->insertStr("int ");
-        }
-        editor_->enter();
-        lineNumber_->adjust(*editor_);
-    }
+    // for (int i = 0; i < 1000; i ++) {
+    //     for (int j = 0; j < 50; j++) {
+    //         editor_->insertStr("int ");
+    //     }
+    //     editor_->enter();
+    //     lineNumber_->adjust(*editor_);
+    // }
 }
 
 void Vulkan::createGraphicsPipelines() {
@@ -1853,7 +1856,19 @@ void Vulkan::updateTexture() {
     createCanvasDescriptorSet();
 }
 
-void Vulkan::input(int key, int scancode, int mods) {
+void Vulkan::input(int key, int scancode, int action, int mods) {
+    auto currTime = Timer::nowMilliseconds();
+    if (action == GLFW_RELEASE) {
+        keyboard_->release(key);
+    } else if (action == GLFW_PRESS) {
+        keyboard_->press(key, currTime);
+        processInput(key, scancode, mods);
+    } else if (keyboard_->processKey(key, currTime)) {
+        processInput(key, scancode, mods);
+    }
+}
+
+void Vulkan::processInput(int key, int scancode, int mods) {
     if (key == 256) {
         editor_->mode_ = Editor::Mode::Command;
         return ;

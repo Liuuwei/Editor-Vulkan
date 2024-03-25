@@ -38,6 +38,7 @@
 #include "Timer.h"
 #include "Font.h"
 #include "Editor.h"
+#include "Keyboard.h"
 
 class Vulkan {
 public:
@@ -76,6 +77,7 @@ private:
     void updateDrawAssets();
     void recreateSwapChain();
     void createEditor();
+    void initOther();
 
 private:
     bool checkValidationLayerSupport() ;
@@ -110,7 +112,8 @@ private:
     void processText();
     void updateTexture();
 
-    void input(int key, int scancode, int mods);
+    void input(int key, int scancode, int action, int mods);
+    void processInput(int key, int scancode, int mods);
     void inputText(int key, int scancode, int mods);
     void inputCommand(int key, int scandcode, int mods);
     
@@ -229,6 +232,8 @@ private:
     std::vector<Plane::Point> cursorVertices_;
     std::vector<uint32_t> cursorIndices_;
     glm::vec3 cursorColor_{};
+
+    std::unique_ptr<Keyboard> keyboard_;
 
     int inputText_ = 0;
     int capsLock_ = 0;
