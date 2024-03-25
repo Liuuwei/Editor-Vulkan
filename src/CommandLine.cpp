@@ -34,8 +34,8 @@ void CommandLine::insertStr(const std::string& str) {
 void CommandLine::backspace() {
     if (onlyLine_.size() > 1) {
         onlyLine_.pop_back();
+        cursorX_--;
     }
-    cursorX_--;
 }
 
 void CommandLine::moveCursor(int dir) {

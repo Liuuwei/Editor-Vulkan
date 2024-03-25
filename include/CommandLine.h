@@ -18,7 +18,7 @@ public:
     bool empty();
     void clear();
 
-private:
+public:
     int whichLine_;
     int cursorX_;
     std::string onlyLine_; 
