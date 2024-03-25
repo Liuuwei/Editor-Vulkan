@@ -39,6 +39,7 @@ public:
     void insertStr(const std::string& str);
     void delteChar();
     void moveCursor(Direction dir);
+    void setCursor(glm::ivec2 cursorPos);
     void moveLimit();
     bool lineEmpty(const std::string& line);
     void adjust(int32_t width, int32_t height);

@@ -135,6 +135,12 @@ void Editor::moveCursor(Editor::Direction dir) {
     moveLimit();
 }
 
+void Editor::setCursor(glm::ivec2 cursorPos) {
+    cursorPos_ = cursorPos;
+    
+    moveLimit();
+}
+
 void Editor::moveLimit() {
     if (cursorPos_.y < limit_.up_) {
         limit_.up_ = cursorPos_.y;
