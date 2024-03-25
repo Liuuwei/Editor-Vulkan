@@ -40,6 +40,7 @@
 #include "Font.h"
 #include "Editor.h"
 #include "Keyboard.h"
+#include "CommandLine.h"
 
 class Vulkan {
 public:
@@ -115,6 +116,7 @@ private:
 
     void input(int key, int scancode, int action, int mods);
     void processInput(int key, int scancode, int mods);
+    void inputGeneral(int key, int scancode, int mods);
     void inputText(int key, int scancode, int mods);
     void inputCommand(int key, int scandcode, int mods);
     
@@ -233,6 +235,8 @@ private:
     std::vector<Plane::Point> cursorVertices_;
     std::vector<uint32_t> cursorIndices_;
     glm::vec3 cursorColor_{};
+
+    std::unique_ptr<CommandLine> commandLine_;
 
     std::unique_ptr<Keyboard> keyboard_;
     std::unique_ptr<Grammar> grammar_;

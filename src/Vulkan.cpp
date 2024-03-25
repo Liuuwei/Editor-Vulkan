@@ -1,6 +1,7 @@
 #include "Vulkan.h"
 #include "Buffer.h"
 #include "CommandBuffer.h"
+#include "CommandLine.h"
 #include "CommandPool.h"
 #include "DescriptorPool.h"
 #include "DescriptorSetLayout.h"
@@ -15,6 +16,7 @@
 #include "Tools.h"
 #include "vulkan/vulkan_core.h"
 #include <cassert>
+#include <cerrno>
 #include <cmath>
 #include <format>
 #include <cstddef>
@@ -597,11 +599,11 @@ void Vulkan::createVertex() {
 
 void Vulkan::createEditor() {
     editor_ = std::make_unique<Editor>(swapChain_->width(), swapChain_->height(), font_->lineHeight_);
-    auto s = Timer::nowMilliseconds();
     editor_->init("../text/txt.cpp");
-    auto e = Timer::nowMilliseconds();
-    std::cout << std::format("open file: {} ms\n", e - s);
+
     lineNumber_ = std::make_unique<LineNumber>(*editor_);
+
+    commandLine_ = std::make_unique<CommandLine>(*editor_);    
     
     // for (int i = 0; i < 1000; i ++) {
     //     for (int j = 0; j < 50; j++) {
@@ -1143,7 +1145,7 @@ void Vulkan::recordCommadBuffer(VkCommandBuffer commandBuffer, uint32_t imageInd
         }
 
         // cursor
-        {
+        if (editor_->mode_ != Editor::Mode::General) {
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, cursorPipeline_->pipeline());
 
             std::vector<VkDescriptorSet> descriptorSets{cursorDescriptorSet_};
@@ -1526,80 +1528,87 @@ void Vulkan::updateDrawAssets() {
 
     // cursor
     {   
-        static glm::vec3 cursorColor(1.0f, 1.0f, 1.0f);
-        static auto prevTime = Timer::nowMilliseconds();
-        static unsigned long long deltaTime = 0;
-        auto currTime = Timer::nowMilliseconds();
-        deltaTime += currTime - prevTime;
-        prevTime = currTime;
-        if (deltaTime >= 500) {
-            deltaTime = 0;
-            if (cursorColor.x == 1.0f) {
-                cursorColor = glm::vec3(0.0f, 0.0f, 0.0f);
-            } else {
-                cursorColor = glm::vec3(1.0f, 1.0f, 1.0f);
+        if (editor_->mode_ != Editor::Mode::General) {
+            static glm::vec3 cursorColor(1.0f, 1.0f, 1.0f);
+            static auto prevTime = Timer::nowMilliseconds();
+            static unsigned long long deltaTime = 0;
+            auto currTime = Timer::nowMilliseconds();
+            deltaTime += currTime - prevTime;
+            prevTime = currTime;
+            if (deltaTime >= 500) {
+                deltaTime = 0;
+                if (cursorColor.x == 1.0f) {
+                    cursorColor = glm::vec3(0.0f, 0.0f, 0.0f);
+                } else {
+                    cursorColor = glm::vec3(1.0f, 1.0f, 1.0f);
+                }
             }
+
+            glm::ivec2 xy;
+            if (editor_->mode_ == Editor::Mode::Insert) {
+                xy = editor_->cursorRenderPos(lineNumber_->lineNumberOffset_ * font_->advance_, font_->advance_);
+            } else {
+                xy = commandLine_->cursorRenderPos(font_->advance_);
+            }
+            auto t = canvas_->vertices(xy.x, xy.y, 2.0f, editor_->lineHeight_, cursorColor);
+            cursorVertices_ = t.first;
+            cursorIndices_ = t.second;
+
+            VkDeviceSize size = sizeof(cursorVertices_[0]) * cursorVertices_.size();
+
+            cursorVertexBuffer_.reset(nullptr);
+            cursorVertexBuffer_ = std::make_unique<Buffer>(physicalDevice_, device_);
+            cursorVertexBuffer_->size_ = size;
+            cursorVertexBuffer_->usage_ = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+            cursorVertexBuffer_->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
+            cursorVertexBuffer_->pQueueFamilyIndices_ = queueFamilies_.sets().data();
+            cursorVertexBuffer_->sharingMode_ = queueFamilies_.sharingMode();
+            cursorVertexBuffer_->memoryProperties_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            cursorVertexBuffer_->init();
+
+            auto staginBuffer = std::make_unique<Buffer>(physicalDevice_, device_);
+            staginBuffer->size_ = size;
+            staginBuffer->usage_ = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            staginBuffer->sharingMode_ = VK_SHARING_MODE_EXCLUSIVE;
+            staginBuffer->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
+            staginBuffer->pQueueFamilyIndices_ = queueFamilies_.sets().data();
+            staginBuffer->memoryProperties_ = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+            staginBuffer->init();
+
+            auto data = staginBuffer->map(size);
+            memcpy(data, cursorVertices_.data(), size);
+            staginBuffer->unMap();
+
+            copyBuffer(staginBuffer->buffer(), cursorVertexBuffer_->buffer(), size);
+
+            // font index
+            size = sizeof(cursorIndices_[0]) * cursorIndices_.size();
+
+            cursorIndexBuffer_.reset(nullptr);
+            cursorIndexBuffer_ = std::make_unique<Buffer>(physicalDevice_, device_);
+            cursorIndexBuffer_->size_ = size;
+            cursorIndexBuffer_->usage_ = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+            cursorIndexBuffer_->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
+            cursorIndexBuffer_->pQueueFamilyIndices_ = queueFamilies_.sets().data();
+            cursorIndexBuffer_->sharingMode_ = queueFamilies_.sharingMode();
+            cursorIndexBuffer_->memoryProperties_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            cursorIndexBuffer_->init();
+
+            staginBuffer = std::make_unique<Buffer>(physicalDevice_, device_);
+            staginBuffer->size_ = size;
+            staginBuffer->usage_ = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            staginBuffer->sharingMode_ = VK_SHARING_MODE_EXCLUSIVE;
+            staginBuffer->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
+            staginBuffer->pQueueFamilyIndices_ = queueFamilies_.sets().data();
+            staginBuffer->memoryProperties_ = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+            staginBuffer->init();
+
+            data = staginBuffer->map(size);
+            memcpy(data, cursorIndices_.data(), size);
+            staginBuffer->unMap();
+
+            copyBuffer(staginBuffer->buffer(), cursorIndexBuffer_->buffer(), size);
         }
-
-        auto xy = editor_->cursorRenderPos(lineNumber_->lineNumberOffset_ * font_->advance_, font_->advance_);
-        auto t = canvas_->vertices(xy.x, xy.y, 2.0f, editor_->lineHeight_, cursorColor);
-        cursorVertices_ = t.first;
-        cursorIndices_ = t.second;
-
-        VkDeviceSize size = sizeof(cursorVertices_[0]) * cursorVertices_.size();
-
-        cursorVertexBuffer_.reset(nullptr);
-        cursorVertexBuffer_ = std::make_unique<Buffer>(physicalDevice_, device_);
-        cursorVertexBuffer_->size_ = size;
-        cursorVertexBuffer_->usage_ = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        cursorVertexBuffer_->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
-        cursorVertexBuffer_->pQueueFamilyIndices_ = queueFamilies_.sets().data();
-        cursorVertexBuffer_->sharingMode_ = queueFamilies_.sharingMode();
-        cursorVertexBuffer_->memoryProperties_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        cursorVertexBuffer_->init();
-
-        auto staginBuffer = std::make_unique<Buffer>(physicalDevice_, device_);
-        staginBuffer->size_ = size;
-        staginBuffer->usage_ = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        staginBuffer->sharingMode_ = VK_SHARING_MODE_EXCLUSIVE;
-        staginBuffer->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
-        staginBuffer->pQueueFamilyIndices_ = queueFamilies_.sets().data();
-        staginBuffer->memoryProperties_ = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-        staginBuffer->init();
-
-        auto data = staginBuffer->map(size);
-        memcpy(data, cursorVertices_.data(), size);
-        staginBuffer->unMap();
-
-        copyBuffer(staginBuffer->buffer(), cursorVertexBuffer_->buffer(), size);
-
-        // font index
-        size = sizeof(cursorIndices_[0]) * cursorIndices_.size();
-
-        cursorIndexBuffer_.reset(nullptr);
-        cursorIndexBuffer_ = std::make_unique<Buffer>(physicalDevice_, device_);
-        cursorIndexBuffer_->size_ = size;
-        cursorIndexBuffer_->usage_ = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-        cursorIndexBuffer_->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
-        cursorIndexBuffer_->pQueueFamilyIndices_ = queueFamilies_.sets().data();
-        cursorIndexBuffer_->sharingMode_ = queueFamilies_.sharingMode();
-        cursorIndexBuffer_->memoryProperties_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        cursorIndexBuffer_->init();
-
-        staginBuffer = std::make_unique<Buffer>(physicalDevice_, device_);
-        staginBuffer->size_ = size;
-        staginBuffer->usage_ = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        staginBuffer->sharingMode_ = VK_SHARING_MODE_EXCLUSIVE;
-        staginBuffer->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
-        staginBuffer->pQueueFamilyIndices_ = queueFamilies_.sets().data();
-        staginBuffer->memoryProperties_ = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-        staginBuffer->init();
-
-        data = staginBuffer->map(size);
-        memcpy(data, cursorIndices_.data(), size);
-        staginBuffer->unMap();
-
-        copyBuffer(staginBuffer->buffer(), cursorIndexBuffer_->buffer(), size);
     }
 }   
 
@@ -1875,23 +1884,37 @@ void Vulkan::input(int key, int scancode, int action, int mods) {
 }
 
 void Vulkan::processInput(int key, int scancode, int mods) {
-    if (key == 256) {
+    switch (editor_->mode_) {
+        case Editor::Mode::General:
+            inputGeneral(key, scancode, mods);
+            break;
+        case Editor::Mode::Insert:
+            inputText(key, scancode, mods);
+            break;
+        case Editor::Mode::Command:
+            inputCommand(key, scancode, mods);
+            break;
+    }
+}
+
+void Vulkan::inputGeneral(int key, int scancode, int mods) {
+    if (key == ';' && mods == GLFW_MOD_SHIFT) {
         editor_->mode_ = Editor::Mode::Command;
         return ;
     }
-    if (editor_->mode_ == Editor::Mode::Command && key == 'I') {
-        editor_->mode_ = Editor::Mode::Input;
-        return ;
-    }
 
-    if (editor_->mode_ == Editor::Mode::Command) {
-        inputCommand(key, scancode, mods);
-    } else {
-        inputText(key, scancode, mods);
+    if (key == 'I') {
+        editor_->mode_ = Editor::Mode::Insert;
+        return ;
     }
 }
 
 void Vulkan::inputText(int key, int scancode, int mods) {
+    if (key == GLFW_KEY_ESCAPE) {
+        editor_->mode_ = Editor::Mode::General;
+        return ;
+    }
+
     char c;
     if (key == GLFW_KEY_BACKSPACE) {
         editor_->backspace();
@@ -1921,7 +1944,36 @@ void Vulkan::inputText(int key, int scancode, int mods) {
 }
 
 void Vulkan::inputCommand(int key, int scancode, int mods) {
-
+    if (key == GLFW_KEY_ESCAPE) {
+        commandLine_->clear();
+        editor_->mode_ = Editor::Mode::General;
+        return ;
+    }
+    
+    char c;
+    if (key == GLFW_KEY_BACKSPACE) {
+        commandLine_->backspace();
+    } else if (key == GLFW_KEY_CAPS_LOCK) {
+        capsLock_ ^= 1;
+    } else if (key == GLFW_KEY_ENTER) {
+        commandLine_->enter();
+    } else if (key >= 0 && key <= 127) {
+        if (mods == GLFW_MOD_SHIFT) {
+            c = Tools::charToShiftChar(Tools::keyToChar(key));
+        } else {
+            if (!capsLock_ && key >= 'A' && key <= 'Z') {
+                key += 32; 
+            }
+            c = Tools::keyToChar(key);
+        }
+        if (key != 340) {
+            commandLine_->insertChar(c);
+        }
+    } else if (key == GLFW_KEY_TAB) {
+        commandLine_->insertStr("    ");
+    } else {
+        commandLine_->moveCursor(static_cast<Editor::Direction>(key));
+    }
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL Vulkan::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, 
