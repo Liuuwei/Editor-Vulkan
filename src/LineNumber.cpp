@@ -8,6 +8,8 @@ LineNumber::LineNumber(const Editor& editor) : Editor(editor.screen_.x, editor.s
     lines_.push_back({});
     addLineNumber(lines_.back(), lines_.size());
     wordCount_ = lines_.size() * 5;
+    
+    adjust(editor);
 }
 
 void LineNumber::adjust(const Editor& editor) {
