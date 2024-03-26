@@ -18,6 +18,7 @@ public:
     bool empty();
     void clear();
     void exectue(const std::string& cmd);
+    void adjust(const Editor& editor);
 
 public:
     int whichLine_;

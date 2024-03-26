@@ -158,7 +158,7 @@ public:
             center.x = x + dictionary.at(line[i]).offsetX_ + dictionary.at(line[i]).width_ / 2.0f;
             center.y = y + dictionary.at(line[i]).offsetY_ - dictionary.at(line[i]).height_ / 2.0f;
 
-            auto t = Font::vertices(center.x, center.y, dictionary.at(line[i]), glm::vec3(0.0f, 0.0f, 0.0f));
+            auto t = Font::vertices(center.x, center.y, dictionary.at(line[i]), dictionary.at(line[i]).color_);
             // auto e = Timer::nowMilliseconds();
             // v += e - s;
 

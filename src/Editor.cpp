@@ -233,20 +233,28 @@ glm::ivec2 Editor::searchStr(const std::string& str) {
     return {-1, -1};
 }
 
-void Editor::save() {
+bool Editor::save() {
+    if (fileName_.empty()) {
+        return false;
+    }
+
     save(fileName_);
+
+    return true;
 }
 
-void Editor::save(const std::string& fileName) {
+bool Editor::save(const std::string& fileName) {
     std::ofstream file(fileName);
     if (!file.is_open()) {
-        throw std::runtime_error("failed to open file: " + fileName);
+        return false;
     }
 
     for (size_t i = 0; i < lines_.size(); i++) {
         file << lines_[i] << std::endl;
     }
     file.close();
+
+    return true;
 }
 
 void Editor::setMode(Editor::Mode mode) {

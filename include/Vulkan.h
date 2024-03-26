@@ -163,7 +163,7 @@ private:
     std::unique_ptr<Semaphore> renderFinishSemaphores_;
 
     std::unordered_map<std::string, std::unique_ptr<Image>> canvasImages_;
-    std::vector<std::string> textureNames_ = {"canvas-texture1.jpg", "canvas-texture2.jpg"};
+    std::vector<std::string> textureNames_ = {"texture1.jpg", "texture2.jpg", "texture3.jpg", "texture4.jpg", "texture5.jpg"};
     std::string canvasTextureName_ = textureNames_.front();
 
     Tools::QueueFamilyIndices queueFamilies_;

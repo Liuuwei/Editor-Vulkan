@@ -48,8 +48,8 @@ public:
     Editor::Limit showLimit();
     glm::ivec2 posToScreenPos(glm::ivec2 pos);
     glm::ivec2 searchStr(const std::string& str);
-    void save();
-    void save(const std::string& fileName);
+    bool save();
+    bool save(const std::string& fileName);
     void setMode(Mode mode);
 
 public:

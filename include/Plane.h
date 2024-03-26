@@ -54,10 +54,10 @@ public:
         auto w2 = width / 2.0f, h2 = height / 2.0f;
 
         std::vector<Point> vertices = {
-            {x - w2, y + h2, color.x, color.y, color.z, 0.0f, 1.0f}, 
-            {x + w2, y + h2, color.x, color.y, color.z,  1.0f, 1.0f}, 
-            {x - w2, y - h2, color.x, color.y, color.z, 0.0f, 0.0f}, 
-            {x + w2, y - h2, color.x, color.y, color.z, 1.0f, 0.0f}, 
+            {x - w2, y + h2, color.x, color.y, color.z, 0.0f, 0.0f}, 
+            {x + w2, y + h2, color.x, color.y, color.z,  1.0f, 0.0f}, 
+            {x - w2, y - h2, color.x, color.y, color.z, 0.0f, 1.0f}, 
+            {x + w2, y - h2, color.x, color.y, color.z, 1.0f, 1.0f}, 
         };
 
         std::vector<uint32_t> indices = {

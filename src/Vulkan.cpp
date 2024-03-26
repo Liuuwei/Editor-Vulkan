@@ -1250,6 +1250,7 @@ void Vulkan::loadAssets() {
 }
 
 void Vulkan::loadTextures() {
+    auto s = Timer::nowMilliseconds();
     for (auto& textureName :  textureNames_) {
         auto fullPath = "../textures/" + textureName;
 
@@ -1260,6 +1261,8 @@ void Vulkan::loadTextures() {
             std::cout << "failed to load texture" << std::endl;
             continue;
         }
+
+        std::cout << textureName << std::endl;
 
         VkDeviceSize size = texWidth * texHeight * 4;
 
@@ -1310,6 +1313,8 @@ void Vulkan::loadTextures() {
 
         canvasImages_.insert(std::make_pair(textureName, std::move(canvasImage)));
     }
+    auto e = Timer::nowMilliseconds();
+    std::cout << std::format("load textures: {}ms\n", e - s);
 }
 
 void Vulkan::loadChars() {
@@ -1345,7 +1350,7 @@ void Vulkan::loadChars() {
         currentChar.width_ = texWidth;
         currentChar.height_ = texHeight;
         currentChar.advance_ = advance;
-        currentChar.color_ = glm::vec3(0.0f, 0.0f, 0.0f);
+        currentChar.color_ = glm::vec3(1.0f, 1.0f, 1.0f);
         currentChar.index_ = i;
 
         auto& image = currentChar.image_;        
@@ -1730,6 +1735,7 @@ void Vulkan::recreateSwapChain() {
 
     editor_->adjust(swapChain_->width(), swapChain_->height());
     lineNumber_->adjust(*editor_);
+    commandLine_->adjust(*editor_);
 }
 
 
@@ -2038,11 +2044,14 @@ void Vulkan::processCmd(std::string command) {
 
     if (cmd == "save") {
         if (!arg.empty()) {
-            editor_->save(arg);
+            if (editor_->save(arg)) {
+                commandLine_->clear();
+            }
         } else {
-            editor_->save();
+            if (editor_->save()) {
+                commandLine_->clear();
+            }
         }
-        commandLine_->clear();
     }
 
     if (cmd == "find") {
