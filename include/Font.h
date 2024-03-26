@@ -148,7 +148,7 @@ public:
 
     
 
-    static std::pair<std::vector<Font::Point>, std::vector<uint32_t>> genTextLine(float x, float y, const std::string& line, const std::unordered_map<char, Character>& dictionary, const Grammar& grammar) {
+    static std::pair<std::vector<Font::Point>, std::vector<uint32_t>> genTextLine(float x, float y, const std::string& line, const std::unordered_map<char, Character>& dictionary, const Grammar* const grammar) {
         auto s = Timer::nowMilliseconds();
         std::pair<std::vector<Font::Point>, std::vector<uint32_t>> result;
         unsigned long long v = 0, m = 0;
@@ -173,20 +173,22 @@ public:
         // std::cout << std::format("[once] vertices ms: {}, merge ms: {}\n", v, m);
 
         // color
-        auto wordColor = grammar.parseLine(line);
-        for (auto& word : wordColor) {
-            auto begin = word.first.first;
-            auto size = word.first.second;
-            auto color = word.second;
-            for (int i = begin * 4; i < (begin + size) * 4; i++) {
-                result.first[i].color_ = color;
+        if (grammar != nullptr) {
+            auto wordColor = grammar->parseLine(line);
+            for (auto& word : wordColor) {
+                auto begin = word.first.first;
+                auto size = word.first.second;
+                auto color = word.second;
+                for (int i = begin * 4; i < (begin + size) * 4; i++) {
+                    result.first[i].color_ = color;
+                }
             }
         }
 
         return result;
     }
 
-    static std::pair<std::vector<Font::Point>, std::vector<uint32_t>> genTextLines(float x, float y, uint32_t lineHeight, const std::vector<std::string>& lines, const std::unordered_map<char, Character>& dictionary, const Grammar& grammar) {
+    static std::pair<std::vector<Font::Point>, std::vector<uint32_t>> genTextLines(float x, float y, uint32_t lineHeight, const std::vector<std::string>& lines, const std::unordered_map<char, Character>& dictionary, const Grammar* const grammar) {
         std::pair<std::vector<Font::Point>, std::vector<uint32_t>> result;
 
         unsigned long long g = 0, m = 0;
