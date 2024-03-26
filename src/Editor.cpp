@@ -260,3 +260,128 @@ bool Editor::save(const std::string& fileName) {
 void Editor::setMode(Editor::Mode mode) {
     mode_ = mode;
 }
+
+void Editor::rmCopyLine() {
+    if (lines_.size() <= 1) {
+        lines_[0].clear();
+        adjustCursor();
+        return ;
+    }
+
+    copyLine_ = lines_[cursorPos_.y];
+
+    lines_.erase(lines_.begin() + cursorPos_.y);
+    adjustCursor();
+}
+
+void Editor::adjustCursor() {
+    if (cursorPos_.y >= lines_.size()) {
+        cursorPos_.y = lines_.size() - 1;
+    }
+
+    if (cursorPos_.x >= lines_[cursorPos_.y].size()) {
+        cursorPos_.x = lines_[cursorPos_.y].size();
+    }
+}
+
+void Editor::copyLine() {
+    copyLine_ = lines_[cursorPos_.y];
+}
+
+void Editor::paste() {
+    if (copyLine_.empty()) {
+        return ;
+    }
+
+    insertStr(copyLine_);
+}
+
+void Editor::rmSpace() {
+    while (cursorPos_.x > 0) {
+        if (lines_[cursorPos_.y][cursorPos_.x - 1] != ' ') {
+            break;
+        }
+
+        backspace();
+    }
+}
+
+void Editor::rmWord() {
+    while (cursorPos_.x > 0) {
+        if (lines_[cursorPos_.y][cursorPos_.x - 1] == ' ') {
+            break;
+        }
+
+        backspace();
+    }
+}
+
+void Editor::rmSpaceOrWord() {
+    if (cursorPos_.x > 0) {
+        if (lines_[cursorPos_.y][cursorPos_.x - 1] == ' ') {
+            rmSpace();
+        } else {
+            rmWord();
+        }
+    }
+}
+
+void Editor::moveRight() {
+    if (cursorPos_.x < lines_[cursorPos_.y].size()) {
+        if (lines_[cursorPos_.y][cursorPos_.x] == ' ') {
+            moveRightSpace();
+        } else {
+            moveRightWord();
+        }
+    }
+}
+
+void Editor::moveRightSpace() {
+    while (cursorPos_.x < lines_[cursorPos_.y].size()) {
+        if (lines_[cursorPos_.y][cursorPos_.x] != ' ') {
+            break;
+        }
+
+        moveCursor(Right);
+    }
+}
+
+void Editor::moveRightWord() {
+    while (cursorPos_.x < lines_[cursorPos_.y].size()) {
+        if (lines_[cursorPos_.y][cursorPos_.x] == ' ') {
+            break;
+        }
+
+        moveCursor(Right);
+    }
+}
+
+void Editor::moveLeft() {
+    if (cursorPos_.x > 0) {
+        if (lines_[cursorPos_.y][cursorPos_.x - 1] == ' ') {
+            moveLeftSpace();
+        } else {
+            moveLeftWord();
+        }
+    }
+}
+
+void Editor::moveLeftSpace() {
+    while (cursorPos_.x > 0) {
+        if (lines_[cursorPos_.y][cursorPos_.x - 1] != ' ') {
+            break;
+        }
+
+        moveCursor(Left);
+    }
+}
+
+void Editor::moveLeftWord() {
+    while (cursorPos_.x > 0) {
+        if (lines_[cursorPos_.y][cursorPos_.x - 1] == ' ') {
+            break;
+        }
+
+        moveCursor(Left);
+    }
+}

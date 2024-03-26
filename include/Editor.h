@@ -38,6 +38,19 @@ public:
     void insertChar(char c);
     void insertStr(const std::string& str);
     void delteChar();
+    void copyLine();
+    void paste();
+    void rmSpaceOrWord();
+    void rmSpace();
+    void rmWord();
+    void moveRight();
+    void moveLeft();
+    void moveRightSpace();
+    void moveRightWord();
+    void moveLeftSpace();
+    void moveLeftWord();
+    void rmCopyLine();
+    void adjustCursor();
     void moveCursor(Direction dir);
     void setCursor(glm::ivec2 cursorPos);
     void moveLimit();
@@ -66,4 +79,5 @@ public:
     int showLinesOffset_ = 1;
     unsigned long long wordCount_ = 0;
     std::string fileName_;
+    std::string copyLine_;
 };
