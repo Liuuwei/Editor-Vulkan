@@ -20,13 +20,17 @@ void Editor::init(const std::string& path) {
     std::fstream file(path);
     std::string line;
     if (!file.is_open()) {
-        throw std::runtime_error("failed to open text");
+        std::cout << std::format("faield to open file: {}\n", path);
+        return ;
     }
 
+    fileName_ = path;
     while (std::getline(file, line)) {
         insertStr(line);
         enter();
     }
+
+    file.close();
 }
 
 Editor::Mode Editor::mode() const {
@@ -137,7 +141,7 @@ void Editor::moveCursor(Editor::Direction dir) {
 
 void Editor::setCursor(glm::ivec2 cursorPos) {
     cursorPos_ = cursorPos;
-    
+
     moveLimit();
 }
 
@@ -203,4 +207,48 @@ Editor::Limit Editor::showLimit() {
     auto bottom = std::min(limit_.bottom_, static_cast<int32_t>(lines_.size()));
 
     return {up, bottom};
+}
+
+glm::ivec2 Editor::searchStr(const std::string& str) {
+    auto& currLine = lines_[cursorPos_.y];
+    auto find = currLine.find(str);
+    if (find != std::string::npos) {
+        return {find, cursorPos_.y};
+    }
+
+    for (size_t i = cursorPos_.y; i < lines_.size(); i++) {
+        find = lines_[i].find(str);
+        if (find != std::string::npos) {
+            return {find, i};
+        }
+    }
+
+    for (size_t i = 0; i < cursorPos_.y; i++) {
+        find = lines_[i].find(str);
+        if (find != std::string::npos) {
+            return {find, i};
+        }
+    }
+
+    return {-1, -1};
+}
+
+void Editor::save() {
+    save(fileName_);
+}
+
+void Editor::save(const std::string& fileName) {
+    std::ofstream file(fileName);
+    if (!file.is_open()) {
+        throw std::runtime_error("failed to open file: " + fileName);
+    }
+
+    for (size_t i = 0; i < lines_.size(); i++) {
+        file << lines_[i] << std::endl;
+    }
+    file.close();
+}
+
+void Editor::setMode(Editor::Mode mode) {
+    mode_ = mode;
 }

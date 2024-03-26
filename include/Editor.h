@@ -47,6 +47,10 @@ public:
     bool empty();
     Editor::Limit showLimit();
     glm::ivec2 posToScreenPos(glm::ivec2 pos);
+    glm::ivec2 searchStr(const std::string& str);
+    void save();
+    void save(const std::string& fileName);
+    void setMode(Mode mode);
 
 public:
     Mode mode_ = General;
@@ -61,4 +65,5 @@ public:
     int32_t lineNumberOffset_ = 0;
     int showLinesOffset_ = 1;
     unsigned long long wordCount_ = 0;
+    std::string fileName_;
 };
