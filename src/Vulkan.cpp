@@ -1172,6 +1172,20 @@ void Vulkan::recordCommadBuffer(VkCommandBuffer commandBuffer, uint32_t imageInd
             vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(cmdIndices_.size()), 1, 0, 0, 0);
         }
 
+        // mode name
+        if (!currModeName_.empty()) {
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, fontPipeline_->pipeline());
+
+            std::vector<VkDescriptorSet> descriptorSets{fontDescriptorSet_};
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, fontPipelineLayout_->pipelineLayout(), 0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
+
+            std::vector<VkBuffer> vertexBuffer = {modeVertexBuffer_->buffer()};
+            vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffer.data(), offsets);
+            vkCmdBindIndexBuffer(commandBuffer, modeIndexBuffer_->buffer(), 0, VK_INDEX_TYPE_UINT32);
+            
+            vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(modeIndices_.size()), 1, 0, 0, 0);
+        }
+
         // cursor
         // if (editor_->mode_ != Editor::Mode::General) {
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, cursorPipeline_->pipeline());
@@ -1522,7 +1536,7 @@ void Vulkan::updateDrawAssets() {
             glm::ivec2 xy;
             xy.x = -static_cast<float>(swapChain_->width()) / 2.0f + lineNumber_->lineNumberOffset_ * font_->advance_;
             xy.y = static_cast<float>(swapChain_->height()) / 2.0f - editor_->lineHeight_;
-            auto t = font_->genTextLines(xy.x, xy.y, editor_->lineHeight_, text, dictionary_, *grammar_);
+            auto t = font_->genTextLines(xy.x, xy.y, editor_->lineHeight_, text, dictionary_, grammar_.get());
             // std::cout << std::format("generate vertices ms: {}\n", e - s);
             textVertices_ = t.first;
             textIndices_ = t.second;
@@ -1589,7 +1603,7 @@ void Vulkan::updateDrawAssets() {
         if (lineNumber_->wordCount_ > 0) {
             // std::cout << lineNumber_->limit_.up_ << ", " << lineNumber_->limit_.bottom_ << std::endl;
             auto text = std::vector<std::string>(lineNumber_->lines_.begin() + lineNumber_->showLimit().up_, lineNumber_->lines_.begin() + lineNumber_->showLimit().bottom_);
-            auto t = font_->genTextLines(-static_cast<float>(swapChain_->width()) / 2.0f, static_cast<float>(swapChain_->height()) / 2.0f - lineNumber_->lineHeight_, editor_->lineHeight_, text, dictionary_, *grammar_);
+            auto t = font_->genTextLines(-static_cast<float>(swapChain_->width()) / 2.0f, static_cast<float>(swapChain_->height()) / 2.0f - lineNumber_->lineHeight_, editor_->lineHeight_, text, dictionary_, grammar_.get());
 
             lineNumberVertices_ = t.first;
             lineNumberIndices_ = t.second;
@@ -1656,7 +1670,7 @@ void Vulkan::updateDrawAssets() {
             glm::ivec2 xy;
             xy.x = -static_cast<float>(swapChain_->width()) / 2.0f;
             xy.y = -static_cast<float>(swapChain_->height()) / 2.0f + static_cast<float>(commandLine_->lineHeight_) / 2.0f;
-            auto t = font_->genTextLine(xy.x, xy.y, commandLine_->onlyLine_, dictionary_, *grammar_);
+            auto t = font_->genTextLine(xy.x, xy.y, commandLine_->onlyLine_, dictionary_, grammar_.get());
             // std::cout << std::format("generate vertices ms: {}\n", e - s);
             cmdVertices_ = t.first;
             cmdIndices_ = t.second;
@@ -1716,6 +1730,87 @@ void Vulkan::updateDrawAssets() {
             staginBuffer->unMap();
 
             copyBuffer(staginBuffer->buffer(), cmdIndexBuffer_->buffer(), size);
+        }
+
+        // mode name
+        {
+            switch (editor_->mode_) {
+                case Editor::Mode::General:
+                    currModeName_ = "General";
+                    break;
+                case Editor::Mode::Command:
+                    currModeName_ = "Command";
+                    break;
+                case Editor::Mode::Insert:
+                    currModeName_ = "Insert";
+                    break; 
+                default:
+                    currModeName_ = "Unknown";
+            }
+
+            glm::ivec2 xy;
+            xy.x = static_cast<float>(swapChain_->width()) / 2.0f - currModeName_.size() * font_->advance_;
+            xy.y = -static_cast<float>(swapChain_->height()) / 2.0f + static_cast<float>(commandLine_->lineHeight_) / 2.0f;
+            auto t = font_->genTextLine(xy.x, xy.y, currModeName_, dictionary_, nullptr);
+
+            modeVertices_ = t.first;
+            modeIndices_ = t.second;
+
+            // font vertices
+            VkDeviceSize size = sizeof(modeVertices_[0]) * modeVertices_.size();
+
+            modeVertexBuffer_.reset(nullptr);
+            modeVertexBuffer_ = std::make_unique<Buffer>(physicalDevice_, device_);
+            modeVertexBuffer_->size_ = size;
+            modeVertexBuffer_->usage_ = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+            modeVertexBuffer_->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
+            modeVertexBuffer_->pQueueFamilyIndices_ = queueFamilies_.sets().data();
+            modeVertexBuffer_->sharingMode_ = queueFamilies_.sharingMode();
+            modeVertexBuffer_->memoryProperties_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            modeVertexBuffer_->init();
+
+            auto staginBuffer = std::make_unique<Buffer>(physicalDevice_, device_);
+            staginBuffer->size_ = size;
+            staginBuffer->usage_ = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            staginBuffer->sharingMode_ = VK_SHARING_MODE_EXCLUSIVE;
+            staginBuffer->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
+            staginBuffer->pQueueFamilyIndices_ = queueFamilies_.sets().data();
+            staginBuffer->memoryProperties_ = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+            staginBuffer->init();
+
+            auto data = staginBuffer->map(size);
+            memcpy(data, modeVertices_.data(), size);
+            staginBuffer->unMap();
+
+            copyBuffer(staginBuffer->buffer(), modeVertexBuffer_->buffer(), size);
+
+            // font index
+            size = sizeof(modeIndices_[0]) * modeIndices_.size();
+
+            modeIndexBuffer_.reset(nullptr);
+            modeIndexBuffer_ = std::make_unique<Buffer>(physicalDevice_, device_);
+            modeIndexBuffer_->size_ = size;
+            modeIndexBuffer_->usage_ = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+            modeIndexBuffer_->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
+            modeIndexBuffer_->pQueueFamilyIndices_ = queueFamilies_.sets().data();
+            modeIndexBuffer_->sharingMode_ = queueFamilies_.sharingMode();
+            modeIndexBuffer_->memoryProperties_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            modeIndexBuffer_->init();
+
+            staginBuffer = std::make_unique<Buffer>(physicalDevice_, device_);
+            staginBuffer->size_ = size;
+            staginBuffer->usage_ = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            staginBuffer->sharingMode_ = VK_SHARING_MODE_EXCLUSIVE;
+            staginBuffer->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
+            staginBuffer->pQueueFamilyIndices_ = queueFamilies_.sets().data();
+            staginBuffer->memoryProperties_ = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+            staginBuffer->init();
+
+            data = staginBuffer->map(size);
+            memcpy(data, modeIndices_.data(), size);
+            staginBuffer->unMap();
+
+            copyBuffer(staginBuffer->buffer(), modeIndexBuffer_->buffer(), size);
         }
     }
 
@@ -2065,6 +2160,9 @@ void Vulkan::inputInsert(int key, int scancode, int mods) {
         }
         if (key == GLFW_KEY_LEFT) {
             editor_->moveLeft();
+        }
+        if (key == GLFW_KEY_ENTER) {
+            editor_->newLine();
         }
 
         lineNumber_->adjust(*editor_);

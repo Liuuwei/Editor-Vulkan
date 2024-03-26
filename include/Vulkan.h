@@ -246,6 +246,12 @@ private:
     std::unique_ptr<Buffer> cmdVertexBuffer_;
     std::unique_ptr<Buffer> cmdIndexBuffer_;
 
+    std::string currModeName_ = "General";
+    std::vector<Font::Point> modeVertices_;
+    std::vector<uint32_t> modeIndices_;
+    std::unique_ptr<Buffer> modeVertexBuffer_;
+    std::unique_ptr<Buffer> modeIndexBuffer_;
+
     std::unique_ptr<Keyboard> keyboard_;
     std::unique_ptr<Grammar> grammar_;
 
