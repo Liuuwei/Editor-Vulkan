@@ -369,10 +369,24 @@ void Vulkan::createSamplers() {
     canvasSampler_->addressModeV_ = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     canvasSampler_->addressModeW_ = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     canvasSampler_->minLod_ = 0.0f;
-    canvasSampler_->maxLod_ = 1.0f;
+    canvasSampler_->maxLod_ = VK_LOD_CLAMP_NONE;
     canvasSampler_->anisotropyEnable_ = VK_TRUE;
     canvasSampler_->maxAnisotropy_ = properties.limits.maxSamplerAnisotropy;
     canvasSampler_->init();
+
+    for (auto& name : textureNames_) {
+        auto sampler = std::make_unique<Sampler>(device_);
+        sampler->addressModeU_ = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler->addressModeV_ = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler->addressModeW_ = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler->minLod_ = 0.0f;
+        sampler->maxLod_ = static_cast<float>(canvasMipLevels_.at(name));
+        sampler->anisotropyEnable_ = VK_TRUE;
+        sampler->maxAnisotropy_ = properties.limits.maxSamplerAnisotropy;
+        sampler->init();
+
+        canvasSamplers_.insert({name, std::move(sampler)});
+    }
 }
 
 void Vulkan::createDescriptorPool() {
@@ -528,7 +542,7 @@ void Vulkan::createCanvasDescriptorSet() {
     VkDescriptorImageInfo samplerInfo{};
     samplerInfo.imageView = canvasImages_[canvasTextureName_]->view();
     samplerInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    samplerInfo.sampler = canvasSampler_->sampler();
+    samplerInfo.sampler = canvasSamplers_[canvasTextureName_]->sampler();
 
     std::vector<VkWriteDescriptorSet> descriptorWrites(2);
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1250,37 +1264,35 @@ void Vulkan::loadAssets() {
 }
 
 void Vulkan::loadTextures() {
-    auto s = Timer::nowMilliseconds();
     for (auto& textureName :  textureNames_) {
         auto fullPath = "../textures/" + textureName;
 
         int texWidth, texHeight, texChannels;
         auto pixel = stbi_load(fullPath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        auto mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight))) + 1);
 
         if (!pixel) {
             std::cout << "failed to load texture" << std::endl;
             continue;
         }
 
-        std::cout << textureName << std::endl;
-
         VkDeviceSize size = texWidth * texHeight * 4;
 
         auto canvasImage = std::make_unique<Image>(physicalDevice_, device_);
         canvasImage->imageType_ = VK_IMAGE_TYPE_2D;
         canvasImage->arrayLayers_ = 1;
-        canvasImage->mipLevles_ = 1;
+        canvasImage->mipLevles_ = mipLevels;
         canvasImage->format_ = VK_FORMAT_R8G8B8A8_SRGB;
         canvasImage->extent_ = {static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1};
         canvasImage->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
         canvasImage->pQueueFamilyIndices_ = queueFamilies_.sets().data();
         canvasImage->sharingMode_ = queueFamilies_.multiple() ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE;
         canvasImage->tiling_ = VK_IMAGE_TILING_OPTIMAL;
-        canvasImage->usage_ = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        canvasImage->usage_ = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
         canvasImage->memoryProperties_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
         canvasImage->viewType_ = VK_IMAGE_VIEW_TYPE_2D;
         canvasImage->samples_ = VK_SAMPLE_COUNT_1_BIT;
-        canvasImage->subresourcesRange_ = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        canvasImage->subresourcesRange_ = {VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1};
         canvasImage->init();
         
         std::unique_ptr<Buffer> staginBuffer = std::make_unique<Buffer>(physicalDevice_, device_);
@@ -1296,7 +1308,7 @@ void Vulkan::loadTextures() {
         memcpy(data, pixel, size);
         staginBuffer->unMap();
 
-        VkImageSubresourceRange range{1, 0, 1, 0, 1};
+        VkImageSubresourceRange range{1, 0, mipLevels, 0, 1};
         VkBufferImageCopy region{};
         region.imageOffset = {0, 0, 0};
         region.imageExtent = {static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1};
@@ -1307,14 +1319,102 @@ void Vulkan::loadTextures() {
 
             vkCmdCopyBufferToImage(cmdBuffer, staginBuffer->buffer(), canvasImage->image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-            Tools::setImageLayout(cmdBuffer, canvasImage->image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
-            
         endSingleTimeCommands(cmdBuffer, transferQueue_);
 
-        canvasImages_.insert(std::make_pair(textureName, std::move(canvasImage)));
+        generateMipmaps(canvasImage->image(), VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
+
+            // Tools::setImageLayout(cmdBuffer, canvasImage->image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+            
+        canvasMipLevels_.insert({textureName, mipLevels});
+        canvasImages_.insert({textureName, std::move(canvasImage)});
     }
-    auto e = Timer::nowMilliseconds();
-    std::cout << std::format("load textures: {}ms\n", e - s);
+}
+
+void Vulkan::generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels) {
+    // Check if image format supports linear blitting
+    VkFormatProperties formatProperties;
+    vkGetPhysicalDeviceFormatProperties(physicalDevice_, imageFormat, &formatProperties);
+
+    if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+        throw std::runtime_error("texture image format does not support linear blitting!");
+    }
+
+    VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.image = image;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.levelCount = 1;
+
+    int32_t mipWidth = texWidth;
+    int32_t mipHeight = texHeight;
+
+    for (uint32_t i = 1; i < mipLevels; i++) {
+        barrier.subresourceRange.baseMipLevel = i - 1;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+        vkCmdPipelineBarrier(commandBuffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier);
+
+        VkImageBlit blit{};
+        blit.srcOffsets[0] = {0, 0, 0};
+        blit.srcOffsets[1] = {mipWidth, mipHeight, 1};
+        blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blit.srcSubresource.mipLevel = i - 1;
+        blit.srcSubresource.baseArrayLayer = 0;
+        blit.srcSubresource.layerCount = 1;
+        blit.dstOffsets[0] = {0, 0, 0};
+        blit.dstOffsets[1] = { mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1 };
+        blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blit.dstSubresource.mipLevel = i;
+        blit.dstSubresource.baseArrayLayer = 0;
+        blit.dstSubresource.layerCount = 1;
+
+        vkCmdBlitImage(commandBuffer,
+            image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1, &blit,
+            VK_FILTER_LINEAR);
+
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(commandBuffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier);
+
+        if (mipWidth > 1) mipWidth /= 2;
+        if (mipHeight > 1) mipHeight /= 2;
+    }
+
+    barrier.subresourceRange.baseMipLevel = mipLevels - 1;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(commandBuffer,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+        0, nullptr,
+        0, nullptr,
+        1, &barrier);
+
+    endSingleTimeCommands(commandBuffer, graphicsQueue_);
 }
 
 void Vulkan::loadChars() {
@@ -1947,29 +2047,52 @@ void Vulkan::inputInsert(int key, int scancode, int mods) {
         return ;
     }
 
-    char c;
-    if (key == GLFW_KEY_BACKSPACE) {
-        editor_->backspace();
-    } else if (key == GLFW_KEY_CAPS_LOCK) {
-        capsLock_ ^= 1;
-    } else if (key == GLFW_KEY_ENTER) {
-        editor_->enter();
-    } else if (key >= 0 && key <= 127) {
-        if (mods == GLFW_MOD_SHIFT) {
-            c = Tools::charToShiftChar(Tools::keyToChar(key));
-        } else {
-            if (!capsLock_ && key >= 'A' && key <= 'Z') {
-                key += 32; 
-            }
-            c = Tools::keyToChar(key);
+    if (mods == GLFW_MOD_CONTROL) {
+        if (key == 'C') {
+            editor_->copyLine();
         }
-        if (key != 340) {
-            editor_->insertChar(c);
+        if (key == 'V') {
+            editor_->paste();
         }
-    } else if (key == GLFW_KEY_TAB) {
-        editor_->insertStr("    ");
+        if (key == 'X') {
+            editor_->rmCopyLine();
+        }
+        if (key == GLFW_KEY_BACKSPACE) {
+            editor_->rmSpaceOrWord();
+        }
+        if (key == GLFW_KEY_RIGHT) {
+            editor_->moveRight();
+        }
+        if (key == GLFW_KEY_LEFT) {
+            editor_->moveLeft();
+        }
+
+        lineNumber_->adjust(*editor_);
     } else {
-        editor_->moveCursor(static_cast<Editor::Direction>(key));
+        char c;
+        if (key == GLFW_KEY_BACKSPACE) {
+            editor_->backspace();
+        } else if (key == GLFW_KEY_CAPS_LOCK) {
+            capsLock_ ^= 1;
+        } else if (key == GLFW_KEY_ENTER) {
+            editor_->enter();
+        } else if (key >= 0 && key <= 127) {
+            if (mods == GLFW_MOD_SHIFT) {
+                c = Tools::charToShiftChar(Tools::keyToChar(key));
+            } else {
+                if (!capsLock_ && key >= 'A' && key <= 'Z') {
+                    key += 32; 
+                }
+                c = Tools::keyToChar(key);
+            }
+            if (key != 340) {
+                editor_->insertChar(c);
+            }
+        } else if (key == GLFW_KEY_TAB) {
+            editor_->insertStr("    ");
+        } else {
+            editor_->moveCursor(static_cast<Editor::Direction>(key));
+        }
     }
 
     lineNumber_->adjust(*editor_);

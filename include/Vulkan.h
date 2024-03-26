@@ -120,6 +120,8 @@ private:
     void inputInsert(int key, int scancode, int mods);
     void inputCommand(int key, int scandcode, int mods);
     void processCmd(std::string cmd);
+
+    void generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
     
     GLFWwindow* windows_;
     uint32_t width_;
@@ -162,6 +164,8 @@ private:
     std::unique_ptr<Semaphore> imageAvaiableSemaphores_;
     std::unique_ptr<Semaphore> renderFinishSemaphores_;
 
+    std::unordered_map<std::string, uint32_t> canvasMipLevels_;
+    std::unordered_map<std::string, std::unique_ptr<Sampler>> canvasSamplers_;
     std::unordered_map<std::string, std::unique_ptr<Image>> canvasImages_;
     std::vector<std::string> textureNames_ = {"texture1.jpg", "texture2.jpg", "texture3.jpg", "texture4.jpg", "texture5.jpg"};
     std::string canvasTextureName_ = textureNames_.front();
