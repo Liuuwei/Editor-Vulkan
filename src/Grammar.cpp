@@ -22,10 +22,18 @@ Grammar::Grammar(const std::string& path) {
         {"Red", glm::vec3(1.0f, 0.0f, 0.0f)}, 
         {"Green", glm::vec3(0.0f, 1.0f, 0.0f)}, 
         {"Blue", glm::vec3(0.0f, 0.0f, 1.0f)}, 
+        {"Purple", glm::vec3(128.0f, 0.0f, 128.0f)}, 
     };
     
     for (auto it = data.begin(); it != data.end(); ++it) {
-        auto color = stringToColor_[it.key()];
+        glm::vec3 color;
+
+        if (stringToColor_.find(it.key()) == stringToColor_.end()) {
+            color = glm::vec3(0.0f, 0.0f, 0.0f);
+        } else {
+            color = stringToColor_[it.key()];
+        }
+
         for (const auto& word : it.value()) {
             wordToColor_[word] = color;
         }
