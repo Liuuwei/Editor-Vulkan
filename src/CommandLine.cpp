@@ -2,20 +2,22 @@
 #include "Editor.h"
 #include "GLFW/glfw3.h"
 #include "glm/fwd.hpp"
+#include <cstdlib>
+#include <io.h>
 
 CommandLine::CommandLine(const Editor& editor) : Editor(editor) {
     whichLine_ = editor.showLines_;
     lineNumberOffset_ = 1;
     onlyLine_.insert(onlyLine_.begin(), ':');
     cursorX_ = 0;
+
+    char buffer[256];
+    getcwd(buffer, sizeof(buffer));
+    currPath_ = buffer;
 }
 
 std::string CommandLine::enter() {
     std::string str = {onlyLine_.begin() + lineNumberOffset_, onlyLine_.end()};
-
-    onlyLine_.erase(onlyLine_.begin() + lineNumberOffset_, onlyLine_.end());
-
-    cursorX_ = 0;
 
     return str;
 }
@@ -32,8 +34,8 @@ void CommandLine::insertStr(const std::string& str) {
 }
 
 void CommandLine::backspace() {
-    if (onlyLine_.size() > 1) {
-        onlyLine_.pop_back();
+    if (cursorX_ > 0) {
+        onlyLine_.erase(onlyLine_.begin() + cursorX_ + lineNumberOffset_ - 1);
         cursorX_--;
     }
 }
@@ -73,4 +75,10 @@ bool CommandLine::empty() {
 void CommandLine::clear() {
     onlyLine_.erase(onlyLine_.begin() + lineNumberOffset_, onlyLine_.end());
     cursorX_ = 0;
+}
+
+void CommandLine::exectue(const std::string& cmd) {
+    std::string command = "start cmd.exe /K \"cd /D " + currPath_ + " && " + cmd + "\"";
+
+    system(command.c_str());
 }

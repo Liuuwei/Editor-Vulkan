@@ -17,9 +17,11 @@ public:
     glm::ivec2 cursorRenderPos(int fontAdvance);
     bool empty();
     void clear();
+    void exectue(const std::string& cmd);
 
 public:
     int whichLine_;
     int cursorX_;
     std::string onlyLine_; 
+    std::string currPath_;
 };
