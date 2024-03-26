@@ -64,6 +64,7 @@ public:
     bool save();
     bool save(const std::string& fileName);
     void setMode(Mode mode);
+    void newLine(); // huan hang
 
 public:
     Mode mode_ = General;

@@ -1,4 +1,5 @@
 #include "Editor.h"
+#include "CommandPool.h"
 #include "glm/fwd.hpp"
 #include <algorithm>
 #include <cstddef>
@@ -282,6 +283,8 @@ void Editor::adjustCursor() {
     if (cursorPos_.x >= lines_[cursorPos_.y].size()) {
         cursorPos_.x = lines_[cursorPos_.y].size();
     }
+
+    moveLimit();
 }
 
 void Editor::copyLine() {
@@ -384,4 +387,11 @@ void Editor::moveLeftWord() {
 
         moveCursor(Left);
     }
+}
+
+void Editor::newLine() {
+    lines_.insert(lines_.begin() + cursorPos_.y + 1, std::string());
+
+    cursorPos_.y++;
+    adjustCursor();
 }
