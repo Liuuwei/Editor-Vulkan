@@ -119,7 +119,7 @@ private:
     void inputGeneral(int key, int scancode, int mods);
     void inputInsert(int key, int scancode, int mods);
     void inputCommand(int key, int scandcode, int mods);
-    void processCmd(const std::string& cmd);
+    void processCmd(std::string cmd);
     
     GLFWwindow* windows_;
     uint32_t width_;
@@ -162,10 +162,9 @@ private:
     std::unique_ptr<Semaphore> imageAvaiableSemaphores_;
     std::unique_ptr<Semaphore> renderFinishSemaphores_;
 
-    std::string canvasTexturePath_ = "../textures/canvas-texture1.jpg";
-    std::string updateCanvasTexturePath_;
-    std::unique_ptr<Image> canvasImage_;
-    bool updateCanvas_ = false;
+    std::unordered_map<std::string, std::unique_ptr<Image>> canvasImages_;
+    std::vector<std::string> textureNames_ = {"canvas-texture1.jpg", "canvas-texture2.jpg"};
+    std::string canvasTextureName_ = textureNames_.front();
 
     Tools::QueueFamilyIndices queueFamilies_;
     VkSampleCountFlagBits msaaSamples_ = VK_SAMPLE_COUNT_1_BIT;

@@ -526,7 +526,7 @@ void Vulkan::createCanvasDescriptorSet() {
     bufferInfo.range = sizeof(UniformBufferObject);
 
     VkDescriptorImageInfo samplerInfo{};
-    samplerInfo.imageView = canvasImage_->view();
+    samplerInfo.imageView = canvasImages_[canvasTextureName_]->view();
     samplerInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     samplerInfo.sampler = canvasSampler_->sampler();
 
@@ -568,7 +568,7 @@ void Vulkan::createCursorDescriptorSet() {
     bufferInfo.range = sizeof(UniformBufferObject);
 
     VkDescriptorImageInfo samplerInfo{};
-    samplerInfo.imageView = canvasImage_->view();
+    samplerInfo.imageView = canvasImages_[canvasTextureName_]->view();
     samplerInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     samplerInfo.sampler = canvasSampler_->sampler();
 
@@ -599,7 +599,6 @@ void Vulkan::createVertex() {
 
 void Vulkan::createEditor() {
     editor_ = std::make_unique<Editor>(swapChain_->width(), swapChain_->height(), font_->lineHeight_);
-    editor_->init("../text/txt.cpp");
 
     lineNumber_ = std::make_unique<LineNumber>(*editor_);
 
@@ -1160,7 +1159,7 @@ void Vulkan::recordCommadBuffer(VkCommandBuffer commandBuffer, uint32_t imageInd
         }
 
         // cursor
-        if (editor_->mode_ != Editor::Mode::General) {
+        // if (editor_->mode_ != Editor::Mode::General) {
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, cursorPipeline_->pipeline());
 
             std::vector<VkDescriptorSet> descriptorSets{cursorDescriptorSet_};
@@ -1171,7 +1170,7 @@ void Vulkan::recordCommadBuffer(VkCommandBuffer commandBuffer, uint32_t imageInd
             vkCmdBindIndexBuffer(commandBuffer, cursorIndexBuffer_->buffer(), 0, VK_INDEX_TYPE_UINT32);
             
             vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(cursorIndices_.size()), 1, 0, 0, 0);
-        }
+        // }
 
         // Canvas
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, canvasPipeline_->pipeline());
@@ -1251,63 +1250,70 @@ void Vulkan::loadAssets() {
 }
 
 void Vulkan::loadTextures() {
-    int texWidth, texHeight, texChannels;
-    auto pixel = stbi_load(canvasTexturePath_.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    for (auto& textureName :  textureNames_) {
+        auto fullPath = "../textures/" + textureName;
 
-    if (!pixel) {
-        throw std::runtime_error("failed to load canvas texture");
-    }
+        int texWidth, texHeight, texChannels;
+        auto pixel = stbi_load(fullPath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 
-    VkDeviceSize size = texWidth * texHeight * 4;
+        if (!pixel) {
+            std::cout << "failed to load texture" << std::endl;
+            continue;
+        }
 
-    canvasImage_ = std::make_unique<Image>(physicalDevice_, device_);
-    canvasImage_->imageType_ = VK_IMAGE_TYPE_2D;
-    canvasImage_->arrayLayers_ = 1;
-    canvasImage_->mipLevles_ = 1;
-    canvasImage_->format_ = VK_FORMAT_R8G8B8A8_SRGB;
-    canvasImage_->extent_ = {static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1};
-    canvasImage_->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
-    canvasImage_->pQueueFamilyIndices_ = queueFamilies_.sets().data();
-    canvasImage_->sharingMode_ = queueFamilies_.multiple() ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE;
-    canvasImage_->tiling_ = VK_IMAGE_TILING_OPTIMAL;
-    canvasImage_->usage_ = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    canvasImage_->memoryProperties_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    canvasImage_->viewType_ = VK_IMAGE_VIEW_TYPE_2D;
-    canvasImage_->samples_ = VK_SAMPLE_COUNT_1_BIT;
-    canvasImage_->subresourcesRange_ = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-    canvasImage_->init();
-    
-    std::unique_ptr<Buffer> staginBuffer = std::make_unique<Buffer>(physicalDevice_, device_);
-    staginBuffer->size_ = size;
-    staginBuffer->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
-    staginBuffer->pQueueFamilyIndices_ = queueFamilies_.sets().data();
-    staginBuffer->sharingMode_ = queueFamilies_.multiple() ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE;
-    staginBuffer->usage_ = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    staginBuffer->memoryProperties_ = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-    staginBuffer->init();
-    
-    auto data = staginBuffer->map(size);
-    memcpy(data, pixel, size);
-    staginBuffer->unMap();
+        VkDeviceSize size = texWidth * texHeight * 4;
 
-    VkImageSubresourceRange range{1, 0, 1, 0, 1};
-    VkBufferImageCopy region{};
-    region.imageOffset = {0, 0, 0};
-    region.imageExtent = {static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1};
-    region.imageSubresource = {1, 0, 0, 1};
-
-    auto cmdBuffer = beginSingleTimeCommands();
-        Tools::setImageLayout(cmdBuffer, canvasImage_->image(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
-
-        vkCmdCopyBufferToImage(cmdBuffer, staginBuffer->buffer(), canvasImage_->image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-        Tools::setImageLayout(cmdBuffer, canvasImage_->image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+        auto canvasImage = std::make_unique<Image>(physicalDevice_, device_);
+        canvasImage->imageType_ = VK_IMAGE_TYPE_2D;
+        canvasImage->arrayLayers_ = 1;
+        canvasImage->mipLevles_ = 1;
+        canvasImage->format_ = VK_FORMAT_R8G8B8A8_SRGB;
+        canvasImage->extent_ = {static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1};
+        canvasImage->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
+        canvasImage->pQueueFamilyIndices_ = queueFamilies_.sets().data();
+        canvasImage->sharingMode_ = queueFamilies_.multiple() ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE;
+        canvasImage->tiling_ = VK_IMAGE_TILING_OPTIMAL;
+        canvasImage->usage_ = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        canvasImage->memoryProperties_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        canvasImage->viewType_ = VK_IMAGE_VIEW_TYPE_2D;
+        canvasImage->samples_ = VK_SAMPLE_COUNT_1_BIT;
+        canvasImage->subresourcesRange_ = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        canvasImage->init();
         
-    endSingleTimeCommands(cmdBuffer, transferQueue_);
+        std::unique_ptr<Buffer> staginBuffer = std::make_unique<Buffer>(physicalDevice_, device_);
+        staginBuffer->size_ = size;
+        staginBuffer->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
+        staginBuffer->pQueueFamilyIndices_ = queueFamilies_.sets().data();
+        staginBuffer->sharingMode_ = queueFamilies_.multiple() ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE;
+        staginBuffer->usage_ = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        staginBuffer->memoryProperties_ = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        staginBuffer->init();
+        
+        auto data = staginBuffer->map(size);
+        memcpy(data, pixel, size);
+        staginBuffer->unMap();
+
+        VkImageSubresourceRange range{1, 0, 1, 0, 1};
+        VkBufferImageCopy region{};
+        region.imageOffset = {0, 0, 0};
+        region.imageExtent = {static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1};
+        region.imageSubresource = {1, 0, 0, 1};
+
+        auto cmdBuffer = beginSingleTimeCommands();
+            Tools::setImageLayout(cmdBuffer, canvasImage->image(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+            vkCmdCopyBufferToImage(cmdBuffer, staginBuffer->buffer(), canvasImage->image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+            Tools::setImageLayout(cmdBuffer, canvasImage->image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+            
+        endSingleTimeCommands(cmdBuffer, transferQueue_);
+
+        canvasImages_.insert(std::make_pair(textureName, std::move(canvasImage)));
+    }
 }
 
 void Vulkan::loadChars() {
-    font_ = std::make_unique<Font>(fontPath_.c_str(), 32);
+    font_ = std::make_unique<Font>(fontPath_.c_str(), 20);
 
     uint32_t height = 0;
     for (uint32_t i = 0; i < 128; i++) {
@@ -1325,11 +1331,11 @@ void Vulkan::loadChars() {
         height = std::max(height, static_cast<uint32_t>(texHeight));
 
         if (pixel == nullptr) {
-            texWidth = 15;
-            texHeight = 18;
-            offsetX = 2;
-            offsetY = 18;
-            advance = 19;
+            texWidth = dictionary_.at(static_cast<char>(0)).width_;
+            texHeight = dictionary_.at(static_cast<char>(0)).height_;
+            offsetX = dictionary_.at(static_cast<char>(0)).offsetX_;
+            offsetY = dictionary_.at(static_cast<char>(0)).offsetY_;
+            advance = dictionary_.at(static_cast<char>(0)).advance_;
             size = texWidth * texHeight * 1;
         }
 
@@ -1610,7 +1616,7 @@ void Vulkan::updateDrawAssets() {
 
     // cursor
     {   
-        if (editor_->mode_ != Editor::Mode::General) {
+        // if (editor_->mode_ != Editor::Mode::General) {
             static glm::vec3 cursorColor(1.0f, 1.0f, 1.0f);
             static auto prevTime = Timer::nowMilliseconds();
             static unsigned long long deltaTime = 0;
@@ -1627,7 +1633,7 @@ void Vulkan::updateDrawAssets() {
             }
 
             glm::ivec2 xy;
-            if (editor_->mode_ == Editor::Mode::Insert) {
+            if (editor_->mode_ == Editor::Mode::Insert || editor_->mode_ == Editor::Mode::General) {
                 xy = editor_->cursorRenderPos(lineNumber_->lineNumberOffset_ * font_->advance_, font_->advance_);
             } else {
                 xy = commandLine_->cursorRenderPos(font_->advance_);
@@ -1690,7 +1696,7 @@ void Vulkan::updateDrawAssets() {
             staginBuffer->unMap();
 
             copyBuffer(staginBuffer->buffer(), cursorIndexBuffer_->buffer(), size);
-        }
+        // }
     }
 }   
 
@@ -1885,71 +1891,7 @@ void Vulkan::endSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue queue)
     vkFreeCommandBuffers(device_, commandPool_->commanddPool(), 1, &commandBuffer);
 }
 
-void Vulkan::processText() {
-    if (text_.size() >= 6 && text_.substr(1, 5) == "load:") {
-        auto resource = Tools::rmSpace({text_.begin() + 6, text_.end()});
-        updateCanvasTexturePath_ = "../textures/" + Tools::rmSpace(resource);
-        updateTexture();
-    }
-}
-
 void Vulkan::updateTexture() {
-    int texWidth, texHeight, texChannels;
-    auto start = Timer::nowMilliseconds();
-    auto pixel = stbi_load(updateCanvasTexturePath_.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    auto end = Timer::nowMilliseconds();
-    std::cout << std::format("ms: {}", end - start);
-    if (!pixel) {
-        return ;
-    }
-
-    VkDeviceSize size = texWidth * texHeight * 4;
-
-    canvasImage_ = std::make_unique<Image>(physicalDevice_, device_);
-    canvasImage_->imageType_ = VK_IMAGE_TYPE_2D;
-    canvasImage_->arrayLayers_ = 1;
-    canvasImage_->mipLevles_ = 1;
-    canvasImage_->format_ = VK_FORMAT_R8G8B8A8_SRGB;
-    canvasImage_->extent_ = {static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1};
-    canvasImage_->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
-    canvasImage_->pQueueFamilyIndices_ = queueFamilies_.sets().data();
-    canvasImage_->sharingMode_ = queueFamilies_.multiple() ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE;
-    canvasImage_->tiling_ = VK_IMAGE_TILING_OPTIMAL;
-    canvasImage_->usage_ = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    canvasImage_->memoryProperties_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    canvasImage_->viewType_ = VK_IMAGE_VIEW_TYPE_2D;
-    canvasImage_->samples_ = VK_SAMPLE_COUNT_1_BIT;
-    canvasImage_->subresourcesRange_ = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-    canvasImage_->init();
-    
-    std::unique_ptr<Buffer> staginBuffer = std::make_unique<Buffer>(physicalDevice_, device_);
-    staginBuffer->size_ = size;
-    staginBuffer->queueFamilyIndexCount_ = static_cast<uint32_t>(queueFamilies_.sets().size());
-    staginBuffer->pQueueFamilyIndices_ = queueFamilies_.sets().data();
-    staginBuffer->sharingMode_ = queueFamilies_.multiple() ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE;
-    staginBuffer->usage_ = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    staginBuffer->memoryProperties_ = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-    staginBuffer->init();
-    
-    auto data = staginBuffer->map(size);
-    memcpy(data, pixel, size);
-    staginBuffer->unMap();
-
-    VkImageSubresourceRange range{1, 0, 1, 0, 1};
-    VkBufferImageCopy region{};
-    region.imageOffset = {0, 0, 0};
-    region.imageExtent = {static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1};
-    region.imageSubresource = {1, 0, 0, 1};
-
-    auto cmdBuffer = beginSingleTimeCommands();
-        Tools::setImageLayout(cmdBuffer, canvasImage_->image(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
-
-        vkCmdCopyBufferToImage(cmdBuffer, staginBuffer->buffer(), canvasImage_->image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-        Tools::setImageLayout(cmdBuffer, canvasImage_->image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
-        
-    endSingleTimeCommands(cmdBuffer, transferQueue_);
-
     createCanvasDescriptorSet();
 }
 
@@ -1989,6 +1931,8 @@ void Vulkan::inputGeneral(int key, int scancode, int mods) {
         editor_->mode_ = Editor::Mode::Insert;
         return ;
     }
+
+    editor_->moveCursor(static_cast<Editor::Direction>(key));
 }
 
 void Vulkan::inputInsert(int key, int scancode, int mods) {
@@ -2059,17 +2003,68 @@ void Vulkan::inputCommand(int key, int scancode, int mods) {
     }
 }
 
-void Vulkan::processCmd(const std::string& cmd) {
-    std::cout << cmd << std::endl;
-    if (cmd.size() > 2) {
-        if (cmd.substr(0, 2) == "go") {
-            auto lineNumber = std::stoi(std::string(cmd.begin() + 2, cmd.end())) - 1;
-            if (lineNumber < 0 || lineNumber >= editor_->lines_.size()) {
-                return ;
-            }
-            editor_->setCursor({editor_->cursorPos_.x, lineNumber});
+void Vulkan::processCmd(std::string command) {
+    command = Tools::rmFrontSpace(command);
+    std::string cmd, arg;
+    size_t i = 0;
+    for ( ; i < command.size(); i++) {
+        if (command[i] == ' ') {
+            i++;
+            break;
+        }
+        cmd += command[i];
+    }
+
+    if (i < command.size()) {
+        arg = {command.begin() + i, command.end()};
+    }
+    arg = Tools::rmSpace(arg);
+
+    if (cmd == "go") {
+        auto number = std::stoi(arg) - 1;
+        if (number >= 0 && number < editor_->lines_.size()) {
+            editor_->setCursor({0, number});
             lineNumber_->adjust(*editor_);
-            editor_->mode_ = Editor::Mode::Insert;
+            commandLine_->clear();
+            
+            editor_->setMode(Editor::Mode::General);
+        }
+    }
+
+    if (cmd == "sys") {
+        commandLine_->exectue(arg);
+        commandLine_->clear();
+    }
+
+    if (cmd == "save") {
+        if (!arg.empty()) {
+            editor_->save(arg);
+        } else {
+            editor_->save();
+        }
+        commandLine_->clear();
+    }
+
+    if (cmd == "find") {
+        auto xy = editor_->searchStr(arg);
+        if (xy.x != -1) {
+            editor_->setCursor(xy);
+            lineNumber_->adjust(*editor_);
+            commandLine_->clear();
+        }
+    }
+
+    if (cmd == "open") {
+        editor_->init(arg);
+        lineNumber_->adjust(*editor_);
+        commandLine_->clear();
+    }
+
+    if (cmd == "load") {
+        if (canvasImages_.find(arg) != canvasImages_.end()) {
+            canvasTextureName_ = arg;
+            updateTexture();
+            commandLine_->clear();
         }
     }
 }
