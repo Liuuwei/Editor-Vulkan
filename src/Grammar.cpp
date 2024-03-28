@@ -65,43 +65,41 @@ glm::vec3 Grammar::color(const std::string& word) const {
 std::vector<std::pair<std::pair<int, int>, glm::vec3>> Grammar::parseLine(std::string line) const {
     std::vector<std::pair<std::pair<int, int>, glm::vec3>> result;
 
-    line.insert(line.begin(), ' ');
+    line.push_back(' ');
 
     std::vector<int> spaceIndex;
 
-    for (size_t i = 0; i < line.size(); i++) {
-        if (line[i] == ' ') {
+    for (int i = line.size() - 1; i >= 1; i--) {
+        if (line[i] == ' ' && line[i - 1] != ' ') {
             spaceIndex.push_back(i);
         }
     }
 
-    for (int i = line.size() - 1; i >= 0; ) {
-        if (line[i] != ' ' && (i == line.size() - 1 || line[i + 1] == ' ')) {
+    for (int i = 0; i < line.size(); ) {
+        if (line[i] != ' ' && (i == 0 || line[i - 1] == ' ')) {
             bool match = false;
             
             for (auto index : spaceIndex) {
-                if (index > i) {
+                if (i > index) {
                     break;
                 }
                 
-                std::string word(line.begin() + index + 1, line.begin() + i + 1);
+                std::string word(line.begin() + i, line.begin() + index);
                 if (matchWord(word)) {
-                    result.push_back({{index, i - index}, color(word)});
+                    result.push_back({{i, index - i}, color(word)});
                     match = true;
-                    i = index - 1;
+                    i = index + 1;
                     break;
                 }
             }
 
             if (!match) {
-                i--;
+                i++;
             }
         } else {
-            i--;
+            i++;
         }
     }
-
-    std::reverse(result.begin(), result.end());
 
     return result;
 }
