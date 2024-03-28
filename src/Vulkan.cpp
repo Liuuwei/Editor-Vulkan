@@ -62,7 +62,7 @@ void Vulkan::run() {
         char msg[64];
         snprintf(msg, 10, "ms: %.0f", 1.0f / (static_cast<float>(curr - prev) / 1000));
         prev = curr;
-        glfwSetWindowTitle(windows_, msg);
+        // glfwSetWindowTitle(windows_, msg);
     }
 
     vkDeviceWaitIdle(device_);
@@ -2279,6 +2279,7 @@ void Vulkan::processCmd(std::string command) {
         auto xy = editor_->searchStr(arg);
         if (xy.x != -1) {
             editor_->setCursor(xy);
+            editor_->mode_ =Editor::Mode::Insert;
             lineNumber_->adjust(*editor_);
             commandLine_->clear();
         }
