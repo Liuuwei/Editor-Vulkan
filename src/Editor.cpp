@@ -25,6 +25,9 @@ void Editor::init(const std::string& path) {
         return ;
     }
 
+    lines_.clear();
+    cursorPos_.x = cursorPos_.y = 0;
+
     fileName_ = path;
     while (std::getline(file, line)) {
         insertStr(line);
