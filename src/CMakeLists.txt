@@ -27,10 +27,10 @@ Tools.cpp
 CommandLine.cpp
 )
 
-target_link_libraries(MyVulkan vulkan-1 glfw3dll ktx freetype)
+target_link_libraries(MyVulkan vulkan-1 glfw3dll freetype)
 
 add_executable(Main main.cpp)
-target_link_libraries(Main MyVulkan vulkan-1 glfw3dll ktx freetype)
+target_link_libraries(Main MyVulkan vulkan-1 glfw3dll freetype)
 
 add_executable(Test test.cpp)
 target_link_libraries(Test MyVulkan)
