@@ -31,7 +31,6 @@
 #include <iostream>
 #include <sys/stat.h>
 #include <unordered_set>
-#include <ktx.h>
 #include <algorithm>
 #include <format>
 #include <utility>
@@ -2134,6 +2133,7 @@ void Vulkan::inputGeneral(int key, int scancode, int mods) {
     }
 
     editor_->moveCursor(static_cast<Editor::Direction>(key));
+    lineNumber_->adjust(*editor_);
 }
 
 void Vulkan::inputInsert(int key, int scancode, int mods) {
