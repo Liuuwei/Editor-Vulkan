@@ -86,4 +86,5 @@ void CommandLine::exectue(const std::string& cmd) {
 void CommandLine::adjust(const Editor& editor) {
     whichLine_ = editor.showLines_;
     lineHeight_ = editor.lineHeight_;
+    screen_ = editor.screen_;
 }
