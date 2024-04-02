@@ -27,8 +27,6 @@ public:
     struct Limit {
         int32_t up_ = 0;
         int32_t bottom_ = 1;
-        int32_t left_ = 0;
-        int32_t right_ = 1;
     };
 
     Editor(int32_t width, int32_t height, int32_t lineHeight, int32_t fontAdvance = 0, int32_t showWordsOffset = 0);

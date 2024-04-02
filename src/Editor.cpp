@@ -162,15 +162,6 @@ void Editor::moveLimit() {
 
     limit_.up_ = std::max(limit_.up_, 0);
     limit_.bottom_ = limit_.up_ + showLines_;
-
-    if (cursorPos_.x < limit_.left_) {
-        limit_.left_ = cursorPos_.x;
-    } else if (cursorPos_.x >= limit_.right_) {
-        limit_.left_ = cursorPos_.x - showWords_;
-    }
-
-    limit_.left_ = std::max(limit_.left_, 0);
-    limit_.right_ = limit_.left_ + showWords_;
 }
 
 bool Editor::lineEmpty(const std::string& line) {
@@ -184,12 +175,11 @@ void Editor::adjust(int32_t width, int32_t height) {
     limit_.bottom_ = limit_.up_ + showLines_;
    
     showWords_ = width / fontAdvance_ - showWordsOffset_;
-    limit_.right_ = limit_.left_ + showWords_;
 }
 
 glm::ivec2 Editor::cursorRenderPos(int32_t offsetX, int32_t fontAdvance) {
     glm::ivec2 xy;
-    xy.x = static_cast<float>(cursorPos_.x - limit_.left_);
+    xy.x = static_cast<float>(cursorPos_.x);
     xy.y = static_cast<float>(cursorPos_.y - limit_.up_);
 
     xy.x += lineNumberOffset_;
@@ -224,9 +214,7 @@ Editor::Limit Editor::showLimit() {
     auto up = std::max(limit_.up_, 0);
     auto bottom = std::min(limit_.bottom_, static_cast<int32_t>(lines_.size()));
 
-    auto left = std::max(limit_.left_, 0);
-
-    return {up, bottom, left, limit_.right_};
+    return {up, bottom};
 }
 
 glm::ivec2 Editor::searchStr(const std::string& str) {

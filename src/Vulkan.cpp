@@ -1530,8 +1530,6 @@ void Vulkan::updateDrawAssets() {
             }
 
             auto limit = editor_->showLimit();
-            // std::cout << std::format("x: {}, y: {}\n", editor_->cursorPos_.x, editor_->cursorPos_.y);
-            // std::cout << std::format("up: {}, bottom: {}--left: {}, right: {}\n", limit.up_, limit.bottom_, limit.left_, limit.right_);
 
             auto text = std::vector<std::string>(editor_->lines_.begin() + limit.up_, editor_->lines_.begin() + limit.bottom_);
             // for (auto& s : text) {
@@ -1542,7 +1540,7 @@ void Vulkan::updateDrawAssets() {
             xy.x = -static_cast<float>(swapChain_->width()) / 2.0f + lineNumber_->lineNumberOffset_ * font_->advance_;
             xy.y = static_cast<float>(swapChain_->height()) / 2.0f - editor_->lineHeight_;
 
-            auto t = font_->genTextLines(xy.x, xy.y, editor_->lineHeight_, text, dictionary_, grammar_.get(), limit.left_, limit.right_);
+            auto t = font_->genTextLines(xy.x, xy.y, editor_->lineHeight_, text, dictionary_, grammar_.get());
             t = Font::merge(t, animationPoints);
             // std::cout << std::format("generate vertices ms: {}\n", e - s);
             textVertices_ = t.first;
