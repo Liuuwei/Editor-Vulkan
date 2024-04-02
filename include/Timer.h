@@ -9,6 +9,7 @@ public:
     void tick();
     unsigned long long deltaMilliseconds() const;
     static unsigned long long nowMilliseconds();
+    static double nowSeconds();
 private:
     std::chrono::time_point<std::chrono::high_resolution_clock> prevTime_;
     std::chrono::time_point<std::chrono::high_resolution_clock> currentTime_;

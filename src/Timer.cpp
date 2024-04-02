@@ -17,3 +17,7 @@ unsigned long long Timer::deltaMilliseconds() const {
 unsigned long long Timer::nowMilliseconds() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 }
+
+double Timer::nowSeconds() {
+    return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+}
