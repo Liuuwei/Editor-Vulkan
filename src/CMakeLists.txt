@@ -25,6 +25,8 @@ Grammar.cpp
 Keyboard.cpp
 Tools.cpp
 CommandLine.cpp
+Animation.cpp
+RenderTarget.cpp
 )
 
 target_link_libraries(MyVulkan vulkan-1 glfw3dll freetype)
