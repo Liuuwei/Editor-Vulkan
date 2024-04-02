@@ -1,5 +1,9 @@
 #pragma once
 
+#include <vulkan/vulkan_core.h>
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+
 #include "Buffer.h"
 #include "Fence.h"
 #include "Grammar.h"
@@ -11,13 +15,10 @@
 #include "Sampler.h"
 #include "Semaphore.h"
 #include "Swapchain.h"
-#include "vulkan/vulkan_core.h"
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <utility>
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
 
 #include <string>
 #include <vector>
@@ -41,6 +42,8 @@
 #include "Editor.h"
 #include "Keyboard.h"
 #include "CommandLine.h"
+#include "../include/RenderTarget.h"
+#include "../include/Animation.h"
 
 class Vulkan {
 public:
@@ -110,6 +113,7 @@ private:
     void createTextDescriptorSet();
     void createCanvasDescriptorSet();
     void createCursorDescriptorSet();
+    void mergeResource();
 
     void processText();
     void updateTexture();
@@ -133,40 +137,40 @@ private:
     VkSurfaceKHR surface_;
     VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
     VkDevice device_;
-    std::unique_ptr<RenderPass> renderPass_;
+    std::shared_ptr<RenderPass> renderPass_;
     VkQueue graphicsQueue_;
     VkQueue presentQueue_;
     VkQueue transferQueue_;
 
     std::function<void(VkImage*)> vkImageDelete;
 
-    std::unique_ptr<SwapChain> swapChain_;
+    std::shared_ptr<SwapChain> swapChain_;
 
-    std::unique_ptr<Sampler> canvasSampler_;
+    std::shared_ptr<Sampler> canvasSampler_;
 
-    std::unique_ptr<DescriptorPool> canvasDescriptorPool_;
-    std::unique_ptr<DescriptorSetLayout> canvasDescriptorSetLayout_;
+    std::shared_ptr<DescriptorPool> canvasDescriptorPool_;
+    std::shared_ptr<DescriptorSetLayout> canvasDescriptorSetLayout_;
     VkDescriptorSet canvasDescriptorSets_ = VK_NULL_HANDLE;
 
-    std::unique_ptr<PipelineLayout> canvasPipelineLayout_;
-    std::unique_ptr<Pipeline> canvasPipeline_;
+    std::shared_ptr<PipelineLayout> canvasPipelineLayout_;
+    std::shared_ptr<Pipeline> canvasPipeline_;
 
-    std::unique_ptr<Image> colorImage_;
+    std::shared_ptr<Image> colorImage_;
 
-    std::unique_ptr<Image> depthImage_;
+    std::shared_ptr<Image> depthImage_;
 
-    std::vector<std::unique_ptr<FrameBuffer>> frameBuffers_;
+    std::vector<std::shared_ptr<FrameBuffer>> frameBuffers_;
 
-    std::unique_ptr<CommandPool> commandPool_;
-    std::unique_ptr<CommandBuffer> commandBuffers_;
+    std::shared_ptr<CommandPool> commandPool_;
+    std::shared_ptr<CommandBuffer> commandBuffers_;
 
-    std::unique_ptr<Fence> inFlightFences_;
-    std::unique_ptr<Semaphore> imageAvaiableSemaphores_;
-    std::unique_ptr<Semaphore> renderFinishSemaphores_;
+    std::shared_ptr<Fence> inFlightFences_;
+    std::shared_ptr<Semaphore> imageAvaiableSemaphores_;
+    std::shared_ptr<Semaphore> renderFinishSemaphores_;
 
     std::unordered_map<std::string, uint32_t> canvasMipLevels_;
-    std::unordered_map<std::string, std::unique_ptr<Sampler>> canvasSamplers_;
-    std::unordered_map<std::string, std::unique_ptr<Image>> canvasImages_;
+    std::unordered_map<std::string, std::shared_ptr<Sampler>> canvasSamplers_;
+    std::unordered_map<std::string, std::shared_ptr<Image>> canvasImages_;
     std::vector<std::string> textureNames_ = {"texture1.jpg", "texture2.jpg", "texture3.jpg", "texture4.jpg", "texture5.jpg"};
     std::string canvasTextureName_ = textureNames_.front();
 
@@ -176,14 +180,14 @@ private:
     const std::vector<const char*> validationLayers_ = {"VK_LAYER_KHRONOS_validation"};
     const std::vector<const char*> deviceExtensions_ = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-    std::unique_ptr<Buffer> uniformBuffers_;
+    std::shared_ptr<Buffer> uniformBuffers_;
 
     std::shared_ptr<Camera> camera_;
     Timer timer_;
 
     struct Character {
         Character() {}
-        std::unique_ptr<Image> image_ = nullptr;
+        std::shared_ptr<Image> image_ = nullptr;
         uint32_t width_ = 0;
         uint32_t height_ = 0;
         uint32_t x_ = 0;
@@ -203,61 +207,65 @@ private:
         app->resized_ = true;
     }
 
-    std::unique_ptr<Plane> canvas_;
+    std::shared_ptr<Plane> canvas_;
     std::vector<Plane::Point> canvasVertices_;
     std::vector<uint32_t> canvasIndices_;
-    std::unique_ptr<Buffer> canvasVertexBuffer_;
-    std::unique_ptr<Buffer> canvasIndexBuffer_;
-    std::unique_ptr<Buffer> canvasUniformBuffer_;
+    std::shared_ptr<Buffer> canvasVertexBuffer_;
+    std::shared_ptr<Buffer> canvasIndexBuffer_;
+    std::shared_ptr<Buffer> canvasUniformBuffer_;
 
-    std::unique_ptr<Font> font_;
+    std::shared_ptr<Font> font_;
     const std::string fontPath_ = "../fonts/jbMono.ttf";
     std::unordered_map<char, Font::Character> dictionary_;
-    std::unique_ptr<PipelineLayout> fontPipelineLayout_;
-    std::unique_ptr<Pipeline> fontPipeline_;
-    std::unique_ptr<DescriptorPool> fontDescriptorPool_;
-    std::unique_ptr<DescriptorSetLayout> fontDescriptorSetLayout_;
+    std::shared_ptr<PipelineLayout> fontPipelineLayout_;
+    std::shared_ptr<Pipeline> fontPipeline_;
+    std::shared_ptr<DescriptorPool> fontDescriptorPool_;
+    std::shared_ptr<DescriptorSetLayout> fontDescriptorSetLayout_;
     VkDescriptorSet fontDescriptorSet_;
     std::vector<Font::Point> textVertices_;
     std::vector<uint32_t> textIndices_;
-    std::unique_ptr<Buffer> textVertexBuffer_;
-    std::unique_ptr<Buffer> textIndexBuffer_;
+    std::shared_ptr<Buffer> textVertexBuffer_;
+    std::shared_ptr<Buffer> textIndexBuffer_;
+
+    std::vector<Animation<std::vector<Font::Point>>> textAnimations_;
 
     
-    std::unique_ptr<LineNumber> lineNumber_;
+    std::shared_ptr<LineNumber> lineNumber_;
     std::vector<Font::Point> lineNumberVertices_;
     std::vector<uint32_t> lineNumberIndices_;
-    std::unique_ptr<Buffer> lineNumberVertexBuffer_;
-    std::unique_ptr<Buffer> lineNumberIndexBuffer_;
+    std::shared_ptr<Buffer> lineNumberVertexBuffer_;
+    std::shared_ptr<Buffer> lineNumberIndexBuffer_;
 
-    std::unique_ptr<Editor> editor_;
-    std::unique_ptr<PipelineLayout> cursorPipelineLayout_;
-    std::unique_ptr<Pipeline> cursorPipeline_;
+    std::shared_ptr<Editor> editor_;
+    std::shared_ptr<PipelineLayout> cursorPipelineLayout_;
+    std::shared_ptr<Pipeline> cursorPipeline_;
     VkDescriptorSet cursorDescriptorSet_ = VK_NULL_HANDLE;
-    std::unique_ptr<Buffer> cursorVertexBuffer_;
-    std::unique_ptr<Buffer> cursorIndexBuffer_;
+    std::shared_ptr<Buffer> cursorVertexBuffer_;
+    std::shared_ptr<Buffer> cursorIndexBuffer_;
     std::vector<Plane::Point> cursorVertices_;
     std::vector<uint32_t> cursorIndices_;
     glm::vec3 cursorColor_{};
 
-    std::unique_ptr<CommandLine> commandLine_;
+    std::shared_ptr<CommandLine> commandLine_;
     std::vector<Font::Point> cmdVertices_;
     std::vector<uint32_t> cmdIndices_;
-    std::unique_ptr<Buffer> cmdVertexBuffer_;
-    std::unique_ptr<Buffer> cmdIndexBuffer_;
+    std::shared_ptr<Buffer> cmdVertexBuffer_;
+    std::shared_ptr<Buffer> cmdIndexBuffer_;
 
     std::string currModeName_ = "General";
     std::vector<Font::Point> modeVertices_;
     std::vector<uint32_t> modeIndices_;
-    std::unique_ptr<Buffer> modeVertexBuffer_;
-    std::unique_ptr<Buffer> modeIndexBuffer_;
+    std::shared_ptr<Buffer> modeVertexBuffer_;
+    std::shared_ptr<Buffer> modeIndexBuffer_;
 
-    std::unique_ptr<Keyboard> keyboard_;
-    std::unique_ptr<Grammar> grammar_;
+    std::shared_ptr<Keyboard> keyboard_;
+    std::shared_ptr<Grammar> grammar_;
 
     int inputText_ = 0;
     int capsLock_ = 0;
     std::string text_;
+
+    std::unordered_map<std::string, std::shared_ptr<RenderTarget>> renderTargets_;
 
     enum Color {
         Write, 
