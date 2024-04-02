@@ -33,3 +33,13 @@ void Pipeline::init() {
     pipelineInfo.basePipelineIndex = basePipelineIndex_;
     VK_CHECK(vkCreateGraphicsPipelines(device_, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline_));
 }
+
+std::vector<VkDescriptorSet> Pipeline::descriptorSets() const {
+    std::vector<VkDescriptorSet> result;
+
+    for (auto& it : descriptorSets_) {
+        result.push_back(it.second);
+    }
+
+    return result;
+}

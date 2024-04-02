@@ -3,6 +3,10 @@
 #include "vulkan/vulkan_core.h"
 #include <vulkan/vulkan.h>
 
+#include <vector>
+#include <string>
+#include <unordered_map>
+
 class  Pipeline {
 public:
     Pipeline(VkDevice device);
@@ -10,9 +14,12 @@ public:
 
     void init();
     VkPipeline pipeline() const { return pipeline_; }
+    VkPipelineLayout pipelineLayout() const { return layout_; }
+    std::vector<VkDescriptorSet> descriptorSets() const;
 public:
     VkDevice device_;
     VkPipeline pipeline_;
+    std::unordered_map<std::string, VkDescriptorSet> descriptorSets_;
     VkPipelineCreateFlags                            flags_{};
     uint32_t                                         stageCount_{};
     VkPipelineShaderStageCreateInfo*           pStages_{};
