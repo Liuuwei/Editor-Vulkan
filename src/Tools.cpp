@@ -1,4 +1,8 @@
 #include "Tools.h"
+#include "Buffer.h"
+#include <algorithm>
+#include <set>
+#include <fstream>
 
 bool Tools::QueueFamilyIndices::compeleted() const {
     return graphics.has_value() && present.has_value() && transfer.has_value();
@@ -369,3 +373,15 @@ std::string Tools::getForwardWord(const std::string& str, int index) {
     
     return result;
 } 
+
+bool Tools::less(double a, double b) {
+    return a < b && !equal(a, b);
+}
+
+bool Tools::greater(double a, double b) {
+    return a > b && !equal(a, b);
+}
+
+bool Tools::equal(double a, double b) {
+    return std::abs(a - b) <= 1e-6;
+}

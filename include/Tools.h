@@ -3,20 +3,14 @@
 #include "GLFW/glfw3.h"
 #include "vulkan/vulkan_core.h"
 #include <cmath>
-#include <cstddef>
 #include <cstdint>
 #include <glm/glm.hpp>
-#include <algorithm>
-#include <limits>
-#include <stdexcept>
 
 #include <vector>
 #include <string>
-#include <set>
 #include <optional>
-#include <fstream>
-#include <iostream>
 #include <cassert>
+#include <iostream>
 
 struct Tools {
 
@@ -97,4 +91,9 @@ static std::string rmSpace(const std::string& str);
 
 static std::string getForwardWord(const std::string& str, int index);
 
+static bool less(double a, double b);
+
+static bool greater(double a, double b);
+
+static bool equal(double a, double b);
 };
