@@ -11,10 +11,14 @@
 #include <stdexcept>
 #include <string>
 
-Editor::Editor(int32_t width, int32_t height, int32_t lineHeight) : screen_(width, height), lineHeight_(lineHeight), showLines_(height / lineHeight) {
+Editor::Editor(int32_t width, int32_t height, int32_t lineHeight, int32_t fontAdvance, int32_t showWordsOffset) : screen_(width, height), lineHeight_(lineHeight), showLines_(height / lineHeight), fontAdvance_(fontAdvance), showWordsOffset_(showWordsOffset) {
     showLines_ -= showLinesOffset_;
 
     lines_.resize(1);
+
+    if (fontAdvance != 0) {
+        showWords_ = width / fontAdvance - showWordsOffset;
+    }
 }
 
 void Editor::init(const std::string& path) {
@@ -158,6 +162,15 @@ void Editor::moveLimit() {
 
     limit_.up_ = std::max(limit_.up_, 0);
     limit_.bottom_ = limit_.up_ + showLines_;
+
+    if (cursorPos_.x < limit_.left_) {
+        limit_.left_ = cursorPos_.x;
+    } else if (cursorPos_.x >= limit_.right_) {
+        limit_.left_ = cursorPos_.x - showWords_;
+    }
+
+    limit_.left_ = std::max(limit_.left_, 0);
+    limit_.right_ = limit_.left_ + showWords_;
 }
 
 bool Editor::lineEmpty(const std::string& line) {
@@ -167,15 +180,16 @@ bool Editor::lineEmpty(const std::string& line) {
 void Editor::adjust(int32_t width, int32_t height) {
     screen_ = glm::uvec2(width, height);
 
-    showLines_ = height / lineHeight_;
-    showLines_ -= showLinesOffset_;
-
+    showLines_ = height / lineHeight_ - showLinesOffset_;
     limit_.bottom_ = limit_.up_ + showLines_;
+   
+    showWords_ = width / fontAdvance_ - showWordsOffset_;
+    limit_.right_ = limit_.left_ + showWords_;
 }
 
 glm::ivec2 Editor::cursorRenderPos(int32_t offsetX, int32_t fontAdvance) {
     glm::ivec2 xy;
-    xy.x = static_cast<float>(cursorPos_.x);
+    xy.x = static_cast<float>(cursorPos_.x - limit_.left_);
     xy.y = static_cast<float>(cursorPos_.y - limit_.up_);
 
     xy.x += lineNumberOffset_;
@@ -210,7 +224,9 @@ Editor::Limit Editor::showLimit() {
     auto up = std::max(limit_.up_, 0);
     auto bottom = std::min(limit_.bottom_, static_cast<int32_t>(lines_.size()));
 
-    return {up, bottom};
+    auto left = std::max(limit_.left_, 0);
+
+    return {up, bottom, left, limit_.right_};
 }
 
 glm::ivec2 Editor::searchStr(const std::string& str) {
@@ -397,4 +413,17 @@ void Editor::newLine() {
 
     cursorPos_.y++;
     adjustCursor();
+}
+
+// left down
+glm::ivec2 Editor::nextCharPosition(int32_t offsetX, int32_t fontAdvance) {
+    auto xy = cursorRenderPos(offsetX, fontAdvance);
+
+    xy.y -= lineHeight_ / 2.0f;
+    
+    return xy;
+}
+
+void Editor::setShowWordOffset(int32_t offset) {
+    showWordsOffset_ = offset;
 }

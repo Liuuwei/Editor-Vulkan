@@ -27,9 +27,11 @@ public:
     struct Limit {
         int32_t up_ = 0;
         int32_t bottom_ = 1;
+        int32_t left_ = 0;
+        int32_t right_ = 1;
     };
 
-    Editor(int32_t width, int32_t height, int32_t lineHeight);
+    Editor(int32_t width, int32_t height, int32_t lineHeight, int32_t fontAdvance = 0, int32_t showWordsOffset = 0);
 
     void init(const std::string& path);
     Mode mode() const;
@@ -65,16 +67,21 @@ public:
     bool save(const std::string& fileName);
     void setMode(Mode mode);
     void newLine(); // huan hang
+    glm::ivec2 nextCharPosition(int32_t offsetX, int32_t fontAdvance);
+    void setShowWordOffset(int32_t offset);
 
 public:
     Mode mode_ = General;
     int32_t lineHeight_;
+    int32_t fontAdvance_;
     int32_t currLine_ = 0;
     std::vector<std::string> lines_;
     glm::ivec2 cursorPos_ = {0, 0};
     glm::ivec2 cursorPosTrue_ = {};
     glm::ivec2 screen_;
     int32_t showLines_;
+    int32_t showWords_;
+    int32_t showWordsOffset_ = 0;
     Limit limit_{};
     int32_t lineNumberOffset_ = 0;
     int showLinesOffset_ = 1;
