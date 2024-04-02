@@ -6,11 +6,23 @@ Buffer::Buffer(VkPhysicalDevice physicalDevice, VkDevice device) : physicalDevic
 }
 
 Buffer::~Buffer() {
+    clean();
+}
+
+void Buffer::clean() {
     vkDestroyBuffer(device_, buffer_, nullptr);
     vkFreeMemory(device_, memory_, nullptr);
 }
 
+void Buffer::checkResource() {
+    if (buffer_ != VK_NULL_HANDLE) {
+        clean();
+    }
+}
+
 void Buffer::init() {
+    checkResource();
+
     VkBufferCreateInfo bufferInfo{};
     VkMemoryAllocateInfo memoryInfo{};
     VkMemoryRequirements memRequirements;
