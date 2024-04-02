@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <ostream>
 #include <string>
 #include <unordered_map>
 #include <iostream>
@@ -58,6 +59,29 @@ public:
             position_(point.position_), color_(point.color_), texCoord_(point.texCoord_), index_(index) {}
 
         Point() {}
+
+        Point operator+(const Point& rhs) {
+            Point result(*this);
+            result.position_ += rhs.position_;
+
+            return result;
+        }
+
+        Point operator*(float value) {
+            Point result(*this);
+            result.position_ *= value;
+
+            return result;
+        }
+
+        friend std::ostream& operator<<(std::ostream& os, const Font::Point& rhs) {
+            // auto str = std::format("%d, %d", rhs.position_.x, rhs.position_.y);
+            // os << str;
+
+            os << rhs.position_.x << ", " << rhs.position_.y;
+            
+            return os;
+        }
 
         glm::vec2 position_{};
         glm::vec3 color_{};
@@ -119,22 +143,21 @@ public:
     }
     #endif
 
-    // typedef std::pair<std::vector<Point>, std::vector<uint32_t>> PairPointIndex;
-    // static PairPointIndex merge(PairPointIndex p1, PairPointIndex p2) {
-    //     auto size = p1.first.size();
+    static std::pair<std::vector<Point>, std::vector<uint32_t>> merge(std::pair<std::vector<Point>, std::vector<uint32_t>> p1, std::pair<std::vector<Point>, std::vector<uint32_t>> p2) {
+        auto size = p1.first.size();
 
-    //     std::for_each(p2.second.begin(), p2.second.end(), [size](auto& v) {
-    //         v += size;
-    //     });
+        std::for_each(p2.second.begin(), p2.second.end(), [size](auto& v) {
+            v += size;
+        });
 
-    //     p1.first.insert(p1.first.end(), p2.first.begin(), p2.first.end());
-    //     p1.second.insert(p1.second.end(), p2.second.begin(), p2.second.end());
+        p1.first.insert(p1.first.end(), p2.first.begin(), p2.first.end());
+        p1.second.insert(p1.second.end(), p2.second.begin(), p2.second.end());
 
-    //     return p1;
-    // }
+        return p1;
+    }
 
-    #ifndef mergeVertices
-    #define mergeVertices(p1, p2) \
+    #ifndef mergeVerticesDefine
+    #define mergeVerticesDefine(p1, p2) \
     { \
             auto size = p1.first.size(); \
             std::for_each(p2.second.begin(), p2.second.end(), [size](auto& v) { \
@@ -159,19 +182,11 @@ public:
             center.y = y + dictionary.at(line[i]).offsetY_ - dictionary.at(line[i]).height_ / 2.0f;
 
             auto t = Font::vertices(center.x, center.y, dictionary.at(line[i]), dictionary.at(line[i]).color_);
-            // auto e = Timer::nowMilliseconds();
-            // v += e - s;
 
-            
-            // s = Timer::nowMilliseconds();
-            mergeVertices(result, t);
-            // e = Timer::nowMilliseconds();
-            // m += e - s;
+            mergeVerticesDefine(result, t);
 
             x += dictionary.at(line[i]).advance_;
         }
-        // std::cout << std::format("[once] vertices ms: {}, merge ms: {}\n", v, m);
-
         // color
         if (grammar != nullptr) {
             auto wordColor = grammar->parseLine(line);
@@ -198,7 +213,7 @@ public:
             // auto e = Timer::nowMilliseconds();
             // g += e - s;
             
-            mergeVertices(result, pointAndIndex);
+            mergeVerticesDefine(result, pointAndIndex);
             // s = Timer::nowMilliseconds();
             // m += s - e;
 
@@ -208,6 +223,63 @@ public:
         // std::cout << std::format("generate ms: {}, merge ms: {}\n", g, m);
 
         return result;
+    }
+
+    static std::pair<std::vector<Font::Point>, std::vector<uint32_t>> genTextLine(float x, float y, const std::string& line, const std::unordered_map<char, Character>& dictionary, const Grammar* const grammar, int32_t leftLimit, int32_t rightLimit) {
+        auto s = Timer::nowMilliseconds();
+        std::pair<std::vector<Font::Point>, std::vector<uint32_t>> result;
+        unsigned long long v = 0, m = 0;
+        bool isSpace_ = false;
+        for (size_t i = leftLimit; i < line.size() && i < rightLimit; i++) {
+            glm::vec2 center;
+            center.x = x + dictionary.at(line[i]).offsetX_ + dictionary.at(line[i]).width_ / 2.0f;
+            center.y = y + dictionary.at(line[i]).offsetY_ - dictionary.at(line[i]).height_ / 2.0f;
+
+            auto t = Font::vertices(center.x, center.y, dictionary.at(line[i]), dictionary.at(line[i]).color_);
+
+            mergeVerticesDefine(result, t);
+
+            x += dictionary.at(line[i]).advance_;
+        }
+        // color
+        if (grammar != nullptr) {
+            auto wordColor = grammar->parseLine(line);
+            for (auto& word : wordColor) {
+                auto begin = word.first.first;
+                auto size = word.first.second;
+                auto color = word.second;
+                for (int i = begin * 4; i < (begin + size) * 4; i++) {
+                    result.first[i].color_ = color;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    static std::pair<std::vector<Font::Point>, std::vector<uint32_t>> genTextLines(float x, float y, uint32_t lineHeight, const std::vector<std::string>& lines, const std::unordered_map<char, Character>& dictionary, const Grammar* const grammar, int32_t leftLimit, int32_t rightLimit) {
+        std::pair<std::vector<Font::Point>, std::vector<uint32_t>> result;
+
+        unsigned long long g = 0, m = 0;
+        for (auto& line : lines) {
+            auto pointAndIndex = Font::genTextLine(x, y, line, dictionary, grammar, leftLimit, rightLimit);
+
+            mergeVerticesDefine(result, pointAndIndex);
+
+            y -= lineHeight;
+        }
+
+        return result;
+    }
+
+    static std::vector<Font::Point> genOneChar(float x, float y, uint32_t lineHeight, char c, const std::unordered_map<char, Character>& dictionary) {
+        glm::ivec2 center;
+        auto& word = dictionary.at(c);
+
+        center.x = x + word.offsetX_ + word.width_ / 2.0f;
+        center.y = y + word.offsetY_ - lineHeight / 2.0f;
+
+        return Font::vertices(center.x, center.y, word, word.color_).first;
     }
 
     void loadChar(char c);
